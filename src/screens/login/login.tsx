@@ -13,11 +13,24 @@ import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext'; // Importando o contexto de tema
 
 export default function LoginScreen({ navigation }: any) {
+  const { isDark } = useTheme(); // Hook para detectar o tema global
   const [loading, setLoading] = useState(false);
   const [hasPin, setHasPin] = useState(false);
   const [inputPin, setInputPin] = useState('');
+
+  // Paleta de cores dinâmica para a tela de Login
+  const theme = {
+    background: isDark ? '#0f172a' : '#ffffff',
+    text: isDark ? '#f8fafc' : '#1e293b',
+    subtext: isDark ? '#94a3b8' : '#64748b',
+    card: isDark ? '#1e293b' : '#f1f5f9',
+    numBtn: isDark ? '#1e293b' : '#f8fafc',
+    dotBorder: isDark ? '#334155' : '#cbd5e1',
+    inputBorder: isDark ? '#334155' : '#e2e8f0',
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -98,41 +111,51 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
 
       <View style={styles.content}>
         <View style={styles.header}>
-          <View style={styles.logoCircle}>
+          <View style={[styles.logoCircle, { backgroundColor: theme.card }]}>
             <MaterialIcons name="payments" size={50} color="#3870d8" />
           </View>
-          <Text style={styles.title}>MyFinance</Text>
+          <Text style={[styles.title, { color: theme.text }]}>MyFinance</Text>
         </View>
 
         <View style={styles.authContainer}>
           {hasPin && (
             <View style={styles.pinArea}>
-              <Text style={styles.pinLabel}>Digite seu PIN</Text>
-              {/* CORREÇÃO AQUI: View em vez de div */}
+              <Text style={[styles.pinLabel, { color: theme.subtext }]}>Digite seu PIN</Text>
               <View style={styles.dotsRow}>
                 {[1, 2, 3, 4, 5, 6].map((_, i) => (
-                  <View key={i} style={[styles.dot, inputPin.length > i && styles.dotFilled]} />
+                  <View 
+                    key={i} 
+                    style={[
+                      styles.dot, 
+                      { borderColor: theme.dotBorder }, 
+                      inputPin.length > i && styles.dotFilled
+                    ]} 
+                  />
                 ))}
               </View>
 
               <View style={styles.numPad}>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
-                  <TouchableOpacity key={num} style={styles.numBtn} onPress={() => handlePinPress(num)}>
-                    <Text style={styles.numText}>{num}</Text>
+                  <TouchableOpacity 
+                    key={num} 
+                    style={[styles.numBtn, { backgroundColor: theme.numBtn }]} 
+                    onPress={() => handlePinPress(num)}
+                  >
+                    <Text style={[styles.numText, { color: theme.text }]}>{num}</Text>
                   </TouchableOpacity>
                 ))}
                 
-                <TouchableOpacity style={styles.numBtn} onPress={handleDelete}>
-                  <MaterialIcons name="backspace" size={24} color="#64748b" />
+                <TouchableOpacity style={[styles.numBtn, { backgroundColor: theme.numBtn }]} onPress={handleDelete}>
+                  <MaterialIcons name="backspace" size={24} color={theme.subtext} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.numBtn} onPress={() => handlePinPress('0')}>
-                  <Text style={styles.numText}>0</Text>
+                <TouchableOpacity style={[styles.numBtn, { backgroundColor: theme.numBtn }]} onPress={() => handlePinPress('0')}>
+                  <Text style={[styles.numText, { color: theme.text }]}>0</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.numBtn, styles.enterBtn]} onPress={handleManualLogin}>
@@ -148,48 +171,51 @@ export default function LoginScreen({ navigation }: any) {
           )}
 
           <View style={styles.registrationArea}>
-            {!hasPin && <Text style={styles.welcomeText}>Bem-vindo! Comece agora:</Text>}
+            {!hasPin && <Text style={[styles.welcomeText, { color: theme.subtext }]}>Bem-vindo! Comece agora:</Text>}
             
-            <TouchableOpacity style={styles.emailBtn} onPress={() => navigation.navigate('Email')}>
+            <TouchableOpacity 
+              style={[styles.emailBtn, { borderColor: theme.inputBorder }]} 
+              onPress={() => navigation.navigate('Email')}
+            >
               <MaterialIcons name="mail-outline" size={22} color="#3870d8" />
               <Text style={styles.emailText}>{hasPin ? "Trocar conta / Novo PIN" : "Cadastrar PIN por E-mail"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.guestBtn} onPress={handleLoginSuccess}>
-              <Text style={styles.guestText}>Entrar como Convidado</Text>
+              <Text style={[styles.guestText, { color: theme.subtext }]}>Entrar como Convidado</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <Text style={styles.footerText}>Proteja seus dados com coragem e sabedoria.</Text>
+        <Text style={[styles.footerText, { color: theme.subtext }]}>Proteja seus dados com coragem e sabedoria.</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   content: { flex: 1, padding: 20, justifyContent: 'space-between', alignItems: 'center' },
   header: { alignItems: 'center', marginTop: 20 },
-  logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  title: { fontSize: 28, fontWeight: 'bold', color: '#1e293b' },
+  logoCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 28, fontWeight: 'bold' },
   authContainer: { width: '100%', alignItems: 'center' },
   pinArea: { alignItems: 'center', width: '100%', marginBottom: 30 },
-  pinLabel: { fontSize: 16, color: '#64748b', marginBottom: 15, fontWeight: '500' },
+  pinLabel: { fontSize: 16, marginBottom: 15, fontWeight: '500' },
   dotsRow: { flexDirection: 'row', gap: 12, marginBottom: 25 },
-  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: '#cbd5e1' },
+  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5 },
   dotFilled: { backgroundColor: '#3870d8', borderColor: '#3870d8' },
   numPad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', width: 280, gap: 15 },
-  numBtn: { width: 65, height: 65, borderRadius: 35, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
+  numBtn: { width: 65, height: 65, borderRadius: 35, justifyContent: 'center', alignItems: 'center' },
   enterBtn: { backgroundColor: '#3870d8' },
-  numText: { fontSize: 22, fontWeight: 'bold', color: '#1e293b' },
+  numText: { fontSize: 22, fontWeight: 'bold' },
   bioLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20 },
   bioLinkText: { color: '#3870d8', fontWeight: '600' },
   registrationArea: { width: '100%', gap: 12, marginTop: 10 },
-  welcomeText: { textAlign: 'center', color: '#64748b', marginBottom: 10 },
-  emailBtn: { flexDirection: 'row', height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  welcomeText: { textAlign: 'center', marginBottom: 10 },
+  emailBtn: { flexDirection: 'row', height: 50, borderRadius: 12, borderWidth: 1, justifyContent: 'center', alignItems: 'center', gap: 10 },
   emailText: { color: '#3870d8', fontWeight: '600' },
   guestBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
-  guestText: { color: '#94a3b8', fontSize: 14 },
-  footerText: { color: '#cbd5e1', fontSize: 11, marginBottom: 10 },
+  guestText: { fontSize: 14 },
+  footerText: { fontSize: 11, marginBottom: 10 },
 });
