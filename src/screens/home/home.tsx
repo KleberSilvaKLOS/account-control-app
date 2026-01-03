@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, 
-  Dimensions, StatusBar, Platform 
+  Dimensions, StatusBar, Platform, Alert 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -22,6 +22,21 @@ export default function HomeScreen() {
   const [fixedTotal, setFixedTotal] = useState(0);
   const [nextBills, setNextBills] = useState<FixedBill[]>([]); 
   const [isVisible, setIsVisible] = useState(true);
+
+  // --- LÓGICA DE LOGOUT ---
+  const handleLogout = () => {
+    Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
+      { text: "Cancelar", style: "cancel" },
+      { 
+        text: "Sair", 
+        style: "destructive", 
+        onPress: async () => {
+          await AsyncStorage.removeItem('@myfinance:logged');
+          navigation.replace('Login'); // Ajustado para 'Login' com L maiúsculo conforme o App.js
+        } 
+      }
+    ]);
+  };
 
   const toggleVisibility = async () => {
     const newValue = !isVisible;
@@ -91,10 +106,19 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
              <Text style={styles.greeting}>Olá, Kleber</Text>
-             <TouchableOpacity onPress={toggleVisibility} style={styles.eyeBtn}>
-               <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffaa" />
-             </TouchableOpacity>
+             
+             {/* CONTAINER DE BOTÕES À DIREITA */}
+             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+                <TouchableOpacity onPress={toggleVisibility} style={styles.eyeBtn}>
+                  <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffaa" />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={handleLogout} style={styles.eyeBtn}>
+                  <MaterialIcons name="logout" size={24} color="#ffffffaa" />
+                </TouchableOpacity>
+             </View>
           </View>
+          
           <Text style={styles.labelBalance}>Saldo Disponível</Text>
           <Text style={styles.balanceValue}>{renderValue(balance)}</Text>
         </View>
