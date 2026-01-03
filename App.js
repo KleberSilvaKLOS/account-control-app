@@ -51,7 +51,8 @@ function TabNavigator() {
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 20,
+          marginBottom: -15,
+          bottom: 0,
           left: 20,
           right: 20,
           elevation: 5,

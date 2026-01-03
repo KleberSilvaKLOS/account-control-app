@@ -28,7 +28,14 @@ export default function LoginScreen({ navigation }: any) {
 
   const checkPinStatus = async () => {
     const savedPin = await AsyncStorage.getItem('@myfinance:pin');
-    setHasPin(!!savedPin);
+    const pinExists = !!savedPin;
+    setHasPin(pinExists);
+
+    if (pinExists) {
+      setTimeout(() => {
+        handleBiometry(true);
+      }, 500);
+    }
   };
 
   const handlePinPress = (num: string) => {
@@ -59,12 +66,13 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  const handleBiometry = async () => {
+  const handleBiometry = async (isAuto = false) => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
     if (!hasHardware || !isEnrolled) {
-      return Alert.alert('Aviso', 'Biometria não disponível.');
+      if (!isAuto) Alert.alert('Aviso', 'Biometria não disponível.');
+      return;
     }
 
     const auth = await LocalAuthentication.authenticateAsync({
@@ -105,6 +113,7 @@ export default function LoginScreen({ navigation }: any) {
           {hasPin && (
             <View style={styles.pinArea}>
               <Text style={styles.pinLabel}>Digite seu PIN</Text>
+              {/* CORREÇÃO AQUI: View em vez de div */}
               <View style={styles.dotsRow}>
                 {[1, 2, 3, 4, 5, 6].map((_, i) => (
                   <View key={i} style={[styles.dot, inputPin.length > i && styles.dotFilled]} />
@@ -118,7 +127,6 @@ export default function LoginScreen({ navigation }: any) {
                   </TouchableOpacity>
                 ))}
                 
-                {/* Botão Apagar */}
                 <TouchableOpacity style={styles.numBtn} onPress={handleDelete}>
                   <MaterialIcons name="backspace" size={24} color="#64748b" />
                 </TouchableOpacity>
@@ -127,24 +135,22 @@ export default function LoginScreen({ navigation }: any) {
                   <Text style={styles.numText}>0</Text>
                 </TouchableOpacity>
 
-                {/* Botão Enter */}
                 <TouchableOpacity style={[styles.numBtn, styles.enterBtn]} onPress={handleManualLogin}>
                   <MaterialIcons name="check" size={30} color="#fff" />
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity style={styles.bioLink} onPress={handleBiometry}>
+              <TouchableOpacity style={styles.bioLink} onPress={() => handleBiometry(false)}>
                 <Ionicons name="finger-print" size={20} color="#3870d8" />
                 <Text style={styles.bioLinkText}>Usar Biometria</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* BOTÕES DE CADASTRO (Sempre visíveis ou para novos usuários) */}
           <View style={styles.registrationArea}>
             {!hasPin && <Text style={styles.welcomeText}>Bem-vindo! Comece agora:</Text>}
             
-            <TouchableOpacity style={styles.emailBtn} onPress={() => navigation.navigate('email')}>
+            <TouchableOpacity style={styles.emailBtn} onPress={() => navigation.navigate('Email')}>
               <MaterialIcons name="mail-outline" size={22} color="#3870d8" />
               <Text style={styles.emailText}>{hasPin ? "Trocar conta / Novo PIN" : "Cadastrar PIN por E-mail"}</Text>
             </TouchableOpacity>
