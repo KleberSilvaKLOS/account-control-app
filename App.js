@@ -144,9 +144,8 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="light" backgroundColor="#3870d8" />
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isLogged ? (
-          <Stack.Screen name="Login" component={LoginScreen} />
-        ) : null}
+        {/* Remova a condicional !isLogged apenas se quiser que a rota exista sempre */}
+        <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={TabNavigator} />
       </Stack.Navigator>
     </NavigationContainer>
