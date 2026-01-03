@@ -6,8 +6,8 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext'; // Importação do tema
 
-// Interface da Conta Fixa
 interface FixedBill {
   id: string;
   title: string;
@@ -18,22 +18,30 @@ interface FixedBill {
 type BillStatus = 'paid' | 'pending' | 'overdue';
 
 export default function FixedBillsScreen() {
-  // --- ESTADOS ---
+  const { isDark } = useTheme(); // Hook do tema
   const [bills, setBills] = useState<FixedBill[]>([]);
   const [paymentsMap, setPaymentsMap] = useState<{[key: string]: boolean}>({}); 
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-
-  // --- ESTADO DE PRIVACIDADE SINCRONIZADO ---
   const [isVisible, setIsVisible] = useState(true);
-
   const [title, setTitle] = useState('');
   const [value, setValue] = useState('');
   const [dueDay, setDueDay] = useState('');
   const [totalFixed, setTotalFixed] = useState(0);
 
-  // --- LOGICA DE SINCRONIZAÇÃO GLOBAL ---
+  // Paleta de cores dinâmica
+  const theme = {
+    background: isDark ? '#0f172a' : '#ffffff',
+    header: isDark ? '#1e293b' : '#3870d8',
+    card: isDark ? '#1e293b' : '#ffffff',
+    text: isDark ? '#f8fafc' : '#334155',
+    subtext: isDark ? '#94a3b8' : '#64748b',
+    input: isDark ? '#334155' : '#f1f5f9',
+    modal: isDark ? '#1e293b' : '#ffffff',
+    iconBox: isDark ? '#334155' : '#f1f5f9'
+  };
+
   useFocusEffect(
     useCallback(() => {
       const loadSyncData = async () => {
@@ -58,12 +66,10 @@ export default function FixedBillsScreen() {
     setTotalFixed(total);
   }, [bills]);
 
-  // --- PERSISTÊNCIA ---
   async function loadData() {
     try {
       const billsJson = await AsyncStorage.getItem('@myfinance:fixed_bills');
       if (billsJson) setBills(JSON.parse(billsJson));
-
       const paymentsJson = await AsyncStorage.getItem('@myfinance:bill_payments');
       if (paymentsJson) setPaymentsMap(JSON.parse(paymentsJson));
     } catch (e) { console.log(e); }
@@ -83,7 +89,6 @@ export default function FixedBillsScreen() {
     } catch (e) { console.log(e); }
   }
 
-  // --- LÓGICA ---
   const getBillStatus = (bill: FixedBill): BillStatus => {
     const month = selectedDate.getMonth();
     const year = selectedDate.getFullYear();
@@ -154,13 +159,14 @@ export default function FixedBillsScreen() {
     const status = getBillStatus(item);
     let statusColor = '#f59e0b'; 
     let statusText = 'Pendente';
-    let cardBorderColor = 'transparent';
+    let cardBorderColor = isDark ? '#334155' : 'transparent';
+    
     if (status === 'paid') { statusColor = '#13ec6d'; statusText = 'Pago'; }
     else if (status === 'overdue') { statusColor = '#ef4444'; statusText = 'Atrasado'; cardBorderColor = '#ef4444'; }
 
     return (
       <TouchableOpacity 
-        style={[styles.card, { borderColor: cardBorderColor, borderWidth: status === 'overdue' ? 1 : 0 }]} 
+        style={[styles.card, { backgroundColor: theme.card, borderColor: cardBorderColor, borderWidth: 1 }]} 
         onPress={() => {
           setEditingId(item.id); setTitle(item.title); setValue(String(item.value)); setDueDay(String(item.dueDay)); setModalVisible(true);
         }}
@@ -168,7 +174,7 @@ export default function FixedBillsScreen() {
       >
         <View style={styles.cardLeft}>
           <TouchableOpacity 
-            style={[styles.iconBox, { backgroundColor: status === 'overdue' ? '#fee2e2' : '#f1f5f9' }]}
+            style={[styles.iconBox, { backgroundColor: status === 'overdue' ? '#fee2e2' : theme.iconBox }]}
             onPress={() => togglePayment(item)}
           >
             <MaterialIcons 
@@ -178,12 +184,12 @@ export default function FixedBillsScreen() {
             />
           </TouchableOpacity>
           <View>
-            <Text style={styles.cardTitle}>{item.title}</Text>
-            <Text style={styles.cardDate}>Vence dia {item.dueDay}</Text>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.title}</Text>
+            <Text style={[styles.cardDate, { color: theme.subtext }]}>Vence dia {item.dueDay}</Text>
           </View>
         </View>
         <View style={styles.cardRight}>
-          <Text style={styles.cardValue}>{renderValue(item.value)}</Text>
+          <Text style={[styles.cardValue, { color: theme.text }]}>{renderValue(item.value)}</Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Text style={styles.statusText}>{statusText}</Text>
           </View>
@@ -193,8 +199,9 @@ export default function FixedBillsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.header} />
+      <View style={[styles.header, { backgroundColor: theme.header }]}>
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Contas Fixas</Text>
           <View style={styles.headerRightActions}>
@@ -202,7 +209,7 @@ export default function FixedBillsScreen() {
                <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.btnAdd} onPress={() => { setEditingId(null); setTitle(''); setValue(''); setDueDay(''); setModalVisible(true); }}>
-              <MaterialIcons name="add" size={28} color="#3870d8" />
+              <MaterialIcons name="add" size={28} color={theme.header} />
             </TouchableOpacity>
           </View>
         </View>
@@ -223,16 +230,16 @@ export default function FixedBillsScreen() {
       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop} /></TouchableWithoutFeedback>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { backgroundColor: theme.modal }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{editingId ? 'Editar Conta' : 'Nova Conta'}</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><MaterialIcons name="close" size={24} color="#64748b" /></TouchableOpacity>
+              <Text style={[styles.modalTitle, { color: isDark ? '#3870d8' : '#3870d8' }]}>{editingId ? 'Editar Conta' : 'Nova Conta'}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><MaterialIcons name="close" size={24} color={theme.subtext} /></TouchableOpacity>
             </View>
-            <Text style={styles.label}>Nome</Text>
-            <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Aluguel" />
+            <Text style={[styles.label, { color: theme.subtext }]}>Nome</Text>
+            <TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={title} onChangeText={setTitle} placeholder="Ex: Aluguel" placeholderTextColor={isDark ? '#64748b' : '#94a3b8'} />
             <View style={{ flexDirection: 'row', gap: 15 }}>
-              <View style={{ flex: 1 }}><Text style={styles.label}>Valor</Text><TextInput style={styles.input} value={value} onChangeText={setValue} keyboardType="numeric" placeholder="0,00" /></View>
-              <View style={{ flex: 1 }}><Text style={styles.label}>Dia</Text><TextInput style={styles.input} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="1-31" maxLength={2} /></View>
+              <View style={{ flex: 1 }}><Text style={[styles.label, { color: theme.subtext }]}>Valor</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={value} onChangeText={setValue} keyboardType="numeric" placeholder="0,00" placeholderTextColor={isDark ? '#64748b' : '#94a3b8'} /></View>
+              <View style={{ flex: 1 }}><Text style={[styles.label, { color: theme.subtext }]}>Dia</Text><TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="1-31" maxLength={2} placeholderTextColor={isDark ? '#64748b' : '#94a3b8'} /></View>
             </View>
             <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={styles.btnSaveText}>SALVAR</Text></TouchableOpacity>
             {editingId && (
@@ -248,8 +255,8 @@ export default function FixedBillsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { backgroundColor: '#3870d8', padding: 20, paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5 },
+  container: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  header: { padding: 20, paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5 },
   headerTop: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: 15 },
   headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
   headerRightActions: { position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -264,22 +271,22 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
   emptyState: { alignItems: 'center', marginTop: 50 },
   emptyText: { color: '#94a3b8', fontSize: 16 },
-  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2 },
+  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2 },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
-  cardDate: { fontSize: 12, color: '#64748b' },
+  cardTitle: { fontSize: 16, fontWeight: 'bold' },
+  cardDate: { fontSize: 12 },
   cardRight: { alignItems: 'flex-end', gap: 5 },
-  cardValue: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
+  cardValue: { fontSize: 16, fontWeight: 'bold' },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   statusText: { color: '#fff', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 25, elevation: 10 },
+  modalContent: { borderRadius: 20, padding: 25, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#3870d8' },
-  label: { color: '#64748b', marginBottom: 5, fontWeight: '600' },
-  input: { backgroundColor: '#f1f5f9', padding: 12, borderRadius: 10, fontSize: 16, marginBottom: 15, color: '#333' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  label: { marginBottom: 5, fontWeight: '600' },
+  input: { padding: 12, borderRadius: 10, fontSize: 16, marginBottom: 15 },
   btnSave: { backgroundColor: '#3870d8', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   btnSaveText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   btnDelete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, gap: 5 },
