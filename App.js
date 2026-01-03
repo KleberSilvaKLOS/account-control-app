@@ -21,6 +21,8 @@ export default function App() {
           headerShown: false,
           tabBarStyle: {
             backgroundColor: '#3870d8ff',
+            borderTopStartRadius: 10,
+            borderTopEndRadius: 10,
             borderTopColor: '#182e22',
             height: 65,
             paddingBottom: 8,
@@ -34,7 +36,7 @@ export default function App() {
           component={ExpensesScreen} 
           options={{
             tabBarIcon: ({ color }) => (
-              <MaterialIcons name="home" size={26} color={color} />
+              <MaterialIcons name="monetization-on" size={26} color={color} />
             )
           }}
         />

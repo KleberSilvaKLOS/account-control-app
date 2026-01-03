@@ -16,7 +16,6 @@ interface Transaction {
   time: string;
 }
 
-// Lista Padrão
 const DEFAULT_SUGGESTIONS = [
   'Supermercado', 'Padaria', 'Restaurante', 'Combustível', 
   'Uber / Transporte', 'Aluguel', 'Conta de Luz', 'Conta de Água', 
@@ -25,7 +24,6 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 export default function ExpensesScreen() {
-  // --- ESTADOS DE DADOS ---
   const [list, setList] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   
@@ -33,18 +31,15 @@ export default function ExpensesScreen() {
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalExpense, setTotalExpense] = useState<number>(0);
 
-  // --- ESTADOS DE UI ---
   const [modalVisible, setModalVisible] = useState<boolean>(false); 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // --- ESTADOS DOS INPUTS ---
   const [description, setDescription] = useState<string>('');
   const [value, setValue] = useState<string>('');
   const [type, setType] = useState<'income' | 'expense'>('expense'); 
   
   const [newCategoryName, setNewCategoryName] = useState<string>('');
 
-  // --- AUTOCOMPLETE ---
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
@@ -57,7 +52,7 @@ export default function ExpensesScreen() {
     calculateTotals(list);
   }, [list]);
 
-  // --- Lógica de Autocomplete ---
+  // --- LÓGICA DE AUTOCOMPLETE ---
   const handleDescriptionChange = (text: string) => {
     setDescription(text);
     if (text.length > 0) {
@@ -77,7 +72,7 @@ export default function ExpensesScreen() {
     setShowSuggestions(false);
   };
 
-  // --- CARREGAMENTO E SALVAMENTO ---
+  // --- PERSISTÊNCIA ---
   async function loadData() {
     try {
       const jsonValue = await AsyncStorage.getItem('@myfinance:transactions');
@@ -118,8 +113,7 @@ export default function ExpensesScreen() {
     setTotalExpense(expense);
   }
 
-  // --- AÇÕES PRINCIPAIS ---
-
+  // --- AÇÕES ---
   function handleAddCategory() {
     if (newCategoryName.trim() === '') {
       Alert.alert('Erro', 'Digite um nome para a categoria');
@@ -132,9 +126,7 @@ export default function ExpensesScreen() {
     Alert.alert('Sucesso', `Categoria "${newCategoryName}" adicionada!`);
   }
 
-  // === AQUI ESTÁ A CORREÇÃO ===
   function handleSaveTransaction() {
-    // 1. Validação do Valor
     if (value === '') {
       Alert.alert('Atenção', 'Informe o valor!');
       return;
@@ -146,7 +138,6 @@ export default function ExpensesScreen() {
       return;
     }
 
-    // 2. Validação da Descrição (AGORA É OBRIGATÓRIA)
     if (description.trim() === '') {
       Alert.alert('Atenção', 'Informe uma descrição para o lançamento!');
       return;
@@ -155,21 +146,14 @@ export default function ExpensesScreen() {
     let newList = [...list];
 
     if (editingId) {
-      // EDIÇÃO
       newList = newList.map(item => item.id === editingId ? {
-        ...item,
-        description: description, // Usa a descrição digitada
-        value: numericValue,
-        type
+        ...item, description, value: numericValue, type
       } : item);
       setEditingId(null);
     } else {
-      // CRIAÇÃO
       const newTransaction: Transaction = {
         id: String(new Date().getTime()),
-        description: description, // Usa a descrição digitada
-        value: numericValue,
-        type: type,
+        description, value: numericValue, type,
         date: new Date().toLocaleDateString('pt-BR'),
         time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
       };
@@ -179,7 +163,6 @@ export default function ExpensesScreen() {
     setList(newList);
     saveData(newList);
     
-    // Limpar campos
     setValue('');
     setDescription('');
     setShowSuggestions(false);
@@ -241,19 +224,23 @@ export default function ExpensesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* HEADER */}
+      {/* HEADER CENTRALIZADO */}
       <View style={styles.summaryContainer}>
-        <View style={styles.headerTopRow}>
-          <View>
+        <View style={styles.headerContent}>
+          
+          {/* Título e Valor Centralizados */}
+          <View style={{ alignItems: 'center' }}>
             <Text style={styles.summaryLabel}>Saldo total</Text>
             <Text style={styles.summaryAmount}>{formatCurrency(balance)}</Text>
           </View>
-          
+
+          {/* Botão + Absoluto na Direita */}
           <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
             <MaterialIcons name="add" size={30} color="#3870d8" />
           </TouchableOpacity>
         </View>
         
+        {/* Resumo Entrada/Saída Centralizado */}
         <View style={styles.row}>
           <View style={styles.summaryMiniCard}>
             <MaterialIcons name="arrow-upward" size={16} color="#13ec6d" />
@@ -413,14 +400,39 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1
   },
-  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' },
-  btnAddHeader: { backgroundColor: '#fff', width: 45, height: 45, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginTop: 5 },
+  // ESTILOS DO HEADER CENTRALIZADO
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'center', // Centraliza o bloco de texto
+    alignItems: 'flex-start',
+    width: '100%',
+    position: 'relative', // Para o botão absoluto funcionar
+    marginBottom: 15
+  },
+  btnAddHeader: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    backgroundColor: '#fff',
+    width: 45,
+    height: 45,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   summaryLabel: { color: '#ffffffcc', fontSize: 14, textTransform: 'uppercase', letterSpacing: 1 },
-  summaryAmount: { color: '#ffffff', fontSize: 32, fontWeight: 'bold', marginTop: 5, marginBottom: 10 },
-  row: { flexDirection: 'row', gap: 15 },
+  summaryAmount: { color: '#ffffff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
+  
+  // Linha de Entrada/Saída Centralizada
+  row: { 
+    flexDirection: 'row', 
+    gap: 15, 
+    justifyContent: 'center' 
+  },
   summaryMiniCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 5 },
   miniCardText: { color: '#fff', fontSize: 12, fontWeight: '500' },
   
+  // INPUT PRINCIPAL
   mainInputContainer: {
     marginHorizontal: 20,
     marginTop: -30,
