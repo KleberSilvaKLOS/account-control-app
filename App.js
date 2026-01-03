@@ -6,6 +6,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 import ExpensesScreen from './src/screens/expenses/expenses';
 import SummaryScreen from './src/screens/summary/summary';
+import FixedBillsScreen from './src/screens/fixedbills/fixedbills';
 
 const Tab = createBottomTabNavigator();
 
@@ -41,6 +42,16 @@ export default function App() {
         <Tab.Screen 
           name="Resumo" // Ou "Investir" se preferir manter o nome antigo
           component={SummaryScreen} 
+          options={{
+            tabBarIcon: ({ color }) => (
+            <MaterialIcons name="pie-chart" size={26} color={color} />
+            )
+          }}
+        />
+
+        <Tab.Screen 
+          name="Fixas" // Ou "Investir" se preferir manter o nome antigo
+          component={FixedBillsScreen} 
           options={{
             tabBarIcon: ({ color }) => (
             <MaterialIcons name="pie-chart" size={26} color={color} />
