@@ -175,7 +175,7 @@ export default function LoginScreen({ navigation }: any) {
             
             <TouchableOpacity 
               style={[styles.emailBtn, { borderColor: theme.inputBorder }]} 
-              onPress={() => navigation.navigate('Email')}
+              onPress={() => navigation.navigate('email')}
             >
               <MaterialIcons name="mail-outline" size={22} color="#3870d8" />
               <Text style={styles.emailText}>{hasPin ? "Trocar conta / Novo PIN" : "Cadastrar PIN por E-mail"}</Text>
