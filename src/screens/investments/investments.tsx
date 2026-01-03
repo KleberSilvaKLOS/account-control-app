@@ -3,11 +3,11 @@ import {
   View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, 
   Modal, TextInput, TouchableWithoutFeedback, Alert, Platform, StatusBar 
 } from 'react-native';
-import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons'; // Adicionado Ionicons
+import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTheme } from '../../context/ThemeContext'; // Importação do tema
 
-// Tipo de Investimento
 interface Investment {
   id: string;
   name: string;      
@@ -17,11 +17,10 @@ interface Investment {
 }
 
 export default function InvestmentsScreen() {
+  const { isDark } = useTheme(); // Hook do tema
   const [list, setList] = useState<Investment[]>([]);
   const [totalInvested, setTotalInvested] = useState(0);
   const [totalCurrent, setTotalCurrent] = useState(0);
-  
-  // --- ESTADO DE PRIVACIDADE ---
   const [isVisible, setIsVisible] = useState(true);
 
   // Modal e Inputs
@@ -31,7 +30,19 @@ export default function InvestmentsScreen() {
   const [currentValue, setCurrentValue] = useState('');
   const [type, setType] = useState<'fixed' | 'variable' | 'crypto'>('fixed');
 
-  // --- SINCRONIZAÇÃO DO OLHO ---
+  // Paleta de cores dinâmica
+  const theme = {
+    background: isDark ? '#0f172a' : '#ffffff',
+    header: isDark ? '#1e293b' : '#3870d8',
+    card: isDark ? '#1e293b' : '#ffffff',
+    text: isDark ? '#f8fafc' : '#334155',
+    subtext: isDark ? '#94a3b8' : '#64748b',
+    input: isDark ? '#334155' : '#f1f5f9',
+    border: isDark ? '#334155' : '#f1f5f9',
+    modal: isDark ? '#1e293b' : '#ffffff',
+    typeBtn: isDark ? '#334155' : '#f1f5f9'
+  };
+
   useFocusEffect(
     useCallback(() => {
       const loadSync = async () => {
@@ -100,11 +111,7 @@ export default function InvestmentsScreen() {
   };
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  // --- HELPER DE PRIVACIDADE ---
-  const renderValue = (val: number) => {
-    return isVisible ? formatCurrency(val) : '••••••';
-  };
+  const renderValue = (val: number) => isVisible ? formatCurrency(val) : '••••••';
 
   const getProfit = (item: Investment) => {
     const diff = item.currentValue - item.amount;
@@ -117,26 +124,28 @@ export default function InvestmentsScreen() {
     const isProfit = diff >= 0;
 
     return (
-      <TouchableOpacity style={styles.card} onLongPress={() => handleDelete(item.id)}>
+      <TouchableOpacity 
+        style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]} 
+        onLongPress={() => handleDelete(item.id)}
+      >
         <View style={styles.cardLeft}>
-          <View style={[styles.iconBox, { backgroundColor: item.type === 'crypto' ? '#fef3c7' : '#e0e7ff' }]}>
+          <View style={[styles.iconBox, { backgroundColor: item.type === 'crypto' ? (isDark ? '#451a03' : '#fef3c7') : (isDark ? '#1e1b4b' : '#e0e7ff') }]}>
             <FontAwesome5 
               name={item.type === 'crypto' ? 'bitcoin' : (item.type === 'variable' ? 'chart-line' : 'university')} 
               size={20} 
-              color={item.type === 'crypto' ? '#d97706' : '#3870d8'} 
+              color={item.type === 'crypto' ? '#f59e0b' : '#3870d8'} 
             />
           </View>
           <View>
-            <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardSubtitle}>Investido: {renderValue(item.amount)}</Text>
+            <Text style={[styles.cardTitle, { color: theme.text }]}>{item.name}</Text>
+            <Text style={[styles.cardSubtitle, { color: theme.subtext }]}>Investido: {renderValue(item.amount)}</Text>
           </View>
         </View>
 
         <View style={styles.cardRight}>
-          <Text style={styles.cardValue}>{renderValue(item.currentValue)}</Text>
-          {/* Oculta porcentagem também por privacidade se o olho estiver fechado */}
+          <Text style={[styles.cardValue, { color: theme.text }]}>{renderValue(item.currentValue)}</Text>
           <Text style={[styles.profitText, { color: isProfit ? '#13ec6d' : '#ef4444' }]}>
-            {isVisible ? `${isProfit ? '+' : ''}${percent.toFixed(1)}% (${isProfit ? '+' : ''}${formatCurrency(diff)})` : '••%'}
+            {isVisible ? `${isProfit ? '+' : ''}${percent.toFixed(1)}%` : '••%'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -146,8 +155,9 @@ export default function InvestmentsScreen() {
   const totalYield = totalCurrent - totalInvested;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <StatusBar barStyle="light-content" backgroundColor={theme.header} />
+      <View style={[styles.header, { backgroundColor: theme.header }]}>
         <Text style={styles.headerTitle}>Meus Investimentos</Text>
         <Text style={styles.labelTotal}>Patrimônio Total</Text>
         <Text style={styles.valueTotal}>{renderValue(totalCurrent)}</Text>
@@ -161,14 +171,12 @@ export default function InvestmentsScreen() {
           </View>
         </View>
 
-        {/* CONTAINER DE AÇÕES NA DIREITA */}
         <View style={styles.headerRightActions}>
           <TouchableOpacity onPress={toggleVisibility} style={styles.eyeBtn}>
             <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffaa" />
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.btnAdd} onPress={() => setModalVisible(true)}>
-            <MaterialIcons name="add" size={28} color="#3870d8" />
+            <MaterialIcons name="add" size={28} color={theme.header} />
           </TouchableOpacity>
         </View>
       </View>
@@ -179,25 +187,26 @@ export default function InvestmentsScreen() {
           renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={{ paddingBottom: 100 }}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhum investimento cadastrado.</Text>}
+          ListEmptyComponent={<Text style={[styles.emptyText, { color: theme.subtext }]}>Nenhum investimento cadastrado.</Text>}
         />
       </View>
 
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop}/></TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Novo Aporte</Text>
-                <Text style={styles.label}>Ativo (Ex: BTC, CDB...)</Text>
-                <TextInput style={styles.input} value={name} onChangeText={setName} />
-                <Text style={styles.label}>Valor Investido (R$)</Text>
-                <TextInput style={styles.input} value={amount} onChangeText={setAmount} keyboardType="numeric" />
-                <Text style={styles.label}>Valor Atual (R$)</Text>
-                <TextInput style={styles.input} value={currentValue} onChangeText={setCurrentValue} keyboardType="numeric" />
+            <View style={[styles.modalContent, { backgroundColor: theme.modal }]}>
+                <Text style={[styles.modalTitle, { color: '#3870d8' }]}>Novo Aporte</Text>
+                <Text style={[styles.label, { color: theme.subtext }]}>Ativo (Ex: BTC, CDB...)</Text>
+                <TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={name} onChangeText={setName} />
+                <Text style={[styles.label, { color: theme.subtext }]}>Valor Investido (R$)</Text>
+                <TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={amount} onChangeText={setAmount} keyboardType="numeric" />
+                <Text style={[styles.label, { color: theme.subtext }]}>Valor Atual (R$)</Text>
+                <TextInput style={[styles.input, { backgroundColor: theme.input, color: theme.text }]} value={currentValue} onChangeText={setCurrentValue} keyboardType="numeric" />
+                
                 <View style={styles.typeRow}>
-                    <TouchableOpacity onPress={() => setType('fixed')} style={[styles.typeBtn, type === 'fixed' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'fixed' && styles.typeTextActive]}>Renda Fixa</Text></TouchableOpacity>
-                    <TouchableOpacity onPress={() => setType('variable')} style={[styles.typeBtn, type === 'variable' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'variable' && styles.typeTextActive]}>Variável</Text></TouchableOpacity>
-                    <TouchableOpacity onPress={() => setType('crypto')} style={[styles.typeBtn, type === 'crypto' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'crypto' && styles.typeTextActive]}>Cripto</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => setType('fixed')} style={[styles.typeBtn, { backgroundColor: theme.typeBtn }, type === 'fixed' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'fixed' && styles.typeTextActive]}>Fixa</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => setType('variable')} style={[styles.typeBtn, { backgroundColor: theme.typeBtn }, type === 'variable' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'variable' && styles.typeTextActive]}>Variável</Text></TouchableOpacity>
+                    <TouchableOpacity onPress={() => setType('crypto')} style={[styles.typeBtn, { backgroundColor: theme.typeBtn }, type === 'crypto' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'crypto' && styles.typeTextActive]}>Cripto</Text></TouchableOpacity>
                 </View>
                 <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={styles.btnSaveText}>SALVAR</Text></TouchableOpacity>
             </View>
@@ -208,8 +217,8 @@ export default function InvestmentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { backgroundColor: '#3870d8', padding: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, alignItems: 'center', position: 'relative' },
+  container: { flex: 1, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  header: { padding: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, alignItems: 'center', position: 'relative' },
   headerTitle: { color: '#ffffffaa', fontSize: 12, textTransform: 'uppercase', marginBottom: 10 },
   labelTotal: { color: '#e2e8f0', fontSize: 14 },
   valueTotal: { color: '#fff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
@@ -217,46 +226,27 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, alignItems: 'center' },
   badgeLabel: { color: '#e2e8f0', fontSize: 10 },
   badgeValue: { fontSize: 14, fontWeight: 'bold' },
-  
-  // AJUSTE DOS BOTÕES NO HEADER
-  headerRightActions: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15, // Espaço entre o olho e o +
-  },
-  eyeBtn: {
-    padding: 5,
-  },
-  btnAdd: { 
-    backgroundColor: '#fff', 
-    width: 40, 
-    height: 40, 
-    borderRadius: 20, 
-    justifyContent: 'center', 
-    alignItems: 'center' 
-  },
-
+  headerRightActions: { position: 'absolute', top: 20, right: 20, flexDirection: 'row', alignItems: 'center', gap: 15 },
+  eyeBtn: { padding: 5 },
+  btnAdd: { backgroundColor: '#fff', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   content: { flex: 1, padding: 20 },
-  emptyText: { textAlign: 'center', color: '#94a3b8', marginTop: 50 },
-  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2, borderWidth: 1, borderColor: '#f1f5f9' },
+  emptyText: { textAlign: 'center', marginTop: 50 },
+  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2, borderWidth: 1 },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
-  cardSubtitle: { fontSize: 12, color: '#94a3b8' },
+  cardTitle: { fontSize: 16, fontWeight: 'bold' },
+  cardSubtitle: { fontSize: 12 },
   cardRight: { alignItems: 'flex-end' },
-  cardValue: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
+  cardValue: { fontSize: 16, fontWeight: 'bold' },
   profitText: { fontSize: 11, fontWeight: 'bold' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#3870d8', marginBottom: 20 },
-  label: { color: '#64748b', marginBottom: 5, fontSize: 12, fontWeight: 'bold' },
-  input: { backgroundColor: '#f1f5f9', padding: 12, borderRadius: 10, fontSize: 16, marginBottom: 15 },
+  modalContent: { borderRadius: 20, padding: 25 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+  label: { marginBottom: 5, fontSize: 12, fontWeight: 'bold' },
+  input: { padding: 12, borderRadius: 10, fontSize: 16, marginBottom: 15 },
   typeRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  typeBtn: { flex: 1, padding: 10, borderRadius: 8, backgroundColor: '#f1f5f9', alignItems: 'center' },
+  typeBtn: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center' },
   typeBtnActive: { backgroundColor: '#3870d8' },
   typeText: { color: '#64748b', fontSize: 12, fontWeight: 'bold' },
   typeTextActive: { color: '#fff' },
