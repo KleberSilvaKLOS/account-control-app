@@ -1,6 +1,19 @@
 {
-  "plugins": [
-    "@react-native-community/datetimepicker",
-    "expo-web-browser"
-  ]
+  "expo": {
+    "name": "account control",
+    "slug": "account-control",
+    "scheme": "account",
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ffe350f5-8f9c-4c2d-99b9-59e028645096"
+      }
+    },
+    "android": {
+      "package": "com.kleber75.accountcontrol"
+    }
+  }
 }
