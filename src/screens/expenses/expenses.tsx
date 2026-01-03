@@ -16,7 +16,7 @@ interface Transaction {
   time: string;
 }
 
-// Lista Padrão (Fica fixa, mas o usuário pode adicionar mais na aba +)
+// Lista Padrão
 const DEFAULT_SUGGESTIONS = [
   'Supermercado', 'Padaria', 'Restaurante', 'Combustível', 
   'Uber / Transporte', 'Aluguel', 'Conta de Luz', 'Conta de Água', 
@@ -27,22 +27,21 @@ const DEFAULT_SUGGESTIONS = [
 export default function ExpensesScreen() {
   // --- ESTADOS DE DADOS ---
   const [list, setList] = useState<Transaction[]>([]);
-  const [customCategories, setCustomCategories] = useState<string[]>([]); // Categorias criadas pelo usuário
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
   
   const [balance, setBalance] = useState<number>(0);
   const [totalIncome, setTotalIncome] = useState<number>(0);
   const [totalExpense, setTotalExpense] = useState<number>(0);
 
   // --- ESTADOS DE UI ---
-  const [modalVisible, setModalVisible] = useState<boolean>(false); // Modal do botão +
-  const [editingId, setEditingId] = useState<string | null>(null); // Se != null, estamos editando um item da lista
+  const [modalVisible, setModalVisible] = useState<boolean>(false); 
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // --- ESTADOS DOS INPUTS DA TELA PRINCIPAL ---
+  // --- ESTADOS DOS INPUTS ---
   const [description, setDescription] = useState<string>('');
   const [value, setValue] = useState<string>('');
   const [type, setType] = useState<'income' | 'expense'>('expense'); 
   
-  // --- ESTADO DO INPUT DE NOVA CATEGORIA (NO MODAL +) ---
   const [newCategoryName, setNewCategoryName] = useState<string>('');
 
   // --- AUTOCOMPLETE ---
@@ -58,7 +57,7 @@ export default function ExpensesScreen() {
     calculateTotals(list);
   }, [list]);
 
-  // --- Lógica de Autocomplete (Junta padrão + customizadas) ---
+  // --- Lógica de Autocomplete ---
   const handleDescriptionChange = (text: string) => {
     setDescription(text);
     if (text.length > 0) {
@@ -66,7 +65,6 @@ export default function ExpensesScreen() {
       const filtered = allOptions.filter(item => 
         item.toLowerCase().includes(text.toLowerCase())
       );
-      // Remove duplicatas e define
       setFilteredSuggestions([...new Set(filtered)]);
       setShowSuggestions(true);
     } else {
@@ -77,7 +75,6 @@ export default function ExpensesScreen() {
   const selectSuggestion = (suggestion: string) => {
     setDescription(suggestion);
     setShowSuggestions(false);
-    // Keyboard.dismiss(); // Comentado para permitir digitar valor logo em seguida se quiser
   };
 
   // --- CARREGAMENTO E SALVAMENTO ---
@@ -123,7 +120,6 @@ export default function ExpensesScreen() {
 
   // --- AÇÕES PRINCIPAIS ---
 
-  // 1. Adicionar Nova Categoria (Na aba +)
   function handleAddCategory() {
     if (newCategoryName.trim() === '') {
       Alert.alert('Erro', 'Digite um nome para a categoria');
@@ -132,13 +128,13 @@ export default function ExpensesScreen() {
     const updatedCategories = [...customCategories, newCategoryName];
     setCustomCategories(updatedCategories);
     saveCategories(updatedCategories);
-    
-    setNewCategoryName(''); // Limpa input
-    Alert.alert('Sucesso', `Categoria "${newCategoryName}" adicionada! Agora ela aparecerá nas sugestões.`);
+    setNewCategoryName('');
+    Alert.alert('Sucesso', `Categoria "${newCategoryName}" adicionada!`);
   }
 
-  // 2. Salvar Lançamento (Botão Check na tela principal)
+  // === AQUI ESTÁ A CORREÇÃO ===
   function handleSaveTransaction() {
+    // 1. Validação do Valor
     if (value === '') {
       Alert.alert('Atenção', 'Informe o valor!');
       return;
@@ -150,24 +146,28 @@ export default function ExpensesScreen() {
       return;
     }
 
-    const finalDescription = description.trim() === '' ? (type === 'income' ? 'Entrada' : 'Despesa') : description;
+    // 2. Validação da Descrição (AGORA É OBRIGATÓRIA)
+    if (description.trim() === '') {
+      Alert.alert('Atenção', 'Informe uma descrição para o lançamento!');
+      return;
+    }
 
     let newList = [...list];
 
     if (editingId) {
-      // MODO EDIÇÃO
+      // EDIÇÃO
       newList = newList.map(item => item.id === editingId ? {
         ...item,
-        description: finalDescription,
+        description: description, // Usa a descrição digitada
         value: numericValue,
         type
       } : item);
-      setEditingId(null); // Sai do modo edição
+      setEditingId(null);
     } else {
-      // MODO CRIAÇÃO
+      // CRIAÇÃO
       const newTransaction: Transaction = {
         id: String(new Date().getTime()),
-        description: finalDescription,
+        description: description, // Usa a descrição digitada
         value: numericValue,
         type: type,
         date: new Date().toLocaleDateString('pt-BR'),
@@ -186,16 +186,13 @@ export default function ExpensesScreen() {
     Keyboard.dismiss();
   }
 
-  // 3. Preparar Edição (Ao clicar na lista)
   const openEditTransaction = (item: Transaction) => {
     setEditingId(item.id);
     setDescription(item.description);
     setValue(String(item.value)); 
     setType(item.type);
-    // Rola para o topo ou foca no input (opcional)
   };
 
-  // 4. Cancelar Edição
   const cancelEditing = () => {
     setEditingId(null);
     setValue('');
@@ -204,10 +201,6 @@ export default function ExpensesScreen() {
     Keyboard.dismiss();
   }
 
-  // 5. Apagar Item (No modo edição - via long press ou botão dedicado se quiser)
-  // Aqui vamos adicionar um botão "X" ao lado do confirmar se estiver editando
-
-  // 6. Apagar TUDO (No Modal +)
   function handleClearAll() {
     Alert.alert("Resetar App", "Apagar todos os lançamentos?", [
       { text: "Cancelar", style: "cancel" },
@@ -248,7 +241,7 @@ export default function ExpensesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <View style={styles.summaryContainer}>
         <View style={styles.headerTopRow}>
           <View>
@@ -256,7 +249,6 @@ export default function ExpensesScreen() {
             <Text style={styles.summaryAmount}>{formatCurrency(balance)}</Text>
           </View>
           
-          {/* Botão + AGORA ABRE O GERENCIADOR DE CATEGORIAS */}
           <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
             <MaterialIcons name="add" size={30} color="#3870d8" />
           </TouchableOpacity>
@@ -274,10 +266,9 @@ export default function ExpensesScreen() {
         </View>
       </View>
 
-      {/* --- ÁREA DE INPUT PRINCIPAL (Tudo junto agora) --- */}
+      {/* ÁREA DE INPUT PRINCIPAL */}
       <View style={styles.mainInputContainer}>
         
-        {/* Linha 1: Seletor Entrada/Saída */}
         <View style={styles.quickTypeSelector}>
            <TouchableOpacity 
              style={[styles.quickTypeBtn, type === 'income' ? styles.quickIncomeActive : styles.quickTypeInactive]} 
@@ -296,7 +287,6 @@ export default function ExpensesScreen() {
            </TouchableOpacity>
         </View>
 
-        {/* Linha 2: Valor */}
         <View style={styles.valueInputWrapper}>
           <Text style={styles.currencyPrefix}>R$</Text>
           <TextInput 
@@ -309,7 +299,6 @@ export default function ExpensesScreen() {
           />
         </View>
 
-        {/* Linha 3: Descrição + Botão Confirmar */}
         <View style={styles.descInputWrapper}>
           <TextInput 
             style={styles.descInput}
@@ -318,7 +307,6 @@ export default function ExpensesScreen() {
             onChangeText={handleDescriptionChange}
           />
           
-          {/* Botão de Ação: Confirmar ou Cancelar Edição */}
           {editingId ? (
              <View style={{flexDirection: 'row', gap: 10}}>
                 <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditing}>
@@ -335,7 +323,6 @@ export default function ExpensesScreen() {
           )}
         </View>
 
-        {/* SUGESTÕES FLUTUANTES (z-index alto) */}
         {showSuggestions && (
           <View style={styles.suggestionsBox}>
             {filteredSuggestions.map((item, index) => (
@@ -347,7 +334,7 @@ export default function ExpensesScreen() {
         )}
       </View>
 
-      {/* --- LISTA --- */}
+      {/* LISTA */}
       <View style={styles.listContainer}>
         <Text style={styles.listTitle}>
           {editingId ? 'Editando item selecionado...' : 'Últimas atividades'}
@@ -361,7 +348,7 @@ export default function ExpensesScreen() {
         />
       </View>
 
-      {/* --- MODAL (Menu + / Adicionar Categoria) --- */}
+      {/* MODAL CONFIG */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -381,9 +368,8 @@ export default function ExpensesScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* SEÇÃO ADICIONAR NOVA CATEGORIA */}
             <Text style={styles.inputLabel}>Adicionar Nova Opção</Text>
-            <Text style={styles.helperText}>Cadastre opções como "Creche", "Ração", etc. para aparecerem no autocompletar.</Text>
+            <Text style={styles.helperText}>Cadastre opções para aparecerem no autocompletar.</Text>
             
             <View style={styles.addCategoryRow}>
               <TextInput 
@@ -397,7 +383,6 @@ export default function ExpensesScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* ÁREA DE PERIGO (Excluir Tudo) */}
             <View style={styles.dangerZone}>
               <TouchableOpacity style={styles.btnDelete} onPress={handleClearAll}>
                 <MaterialIcons name="delete-forever" size={24} color="#ef4444" />
@@ -436,7 +421,6 @@ const styles = StyleSheet.create({
   summaryMiniCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 5 },
   miniCardText: { color: '#fff', fontSize: 12, fontWeight: '500' },
   
-  // --- INPUT PRINCIPAL ---
   mainInputContainer: {
     marginHorizontal: 20,
     marginTop: -30,
@@ -445,7 +429,7 @@ const styles = StyleSheet.create({
     padding: 20,
     elevation: 8,
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6,
-    zIndex: 10, // Importante para o autocomplete ficar em cima da lista
+    zIndex: 10,
     marginBottom: 10,
   },
   quickTypeSelector: { flexDirection: 'row', marginBottom: 15, gap: 10 },
@@ -459,34 +443,30 @@ const styles = StyleSheet.create({
   currencyPrefix: { fontSize: 24, color: '#94a3b8', fontWeight: '600', marginRight: 10 },
   mainValueInput: { flex: 1, fontSize: 32, fontWeight: 'bold', color: '#334155' },
 
-  // Descrição + Botão Confirmar
   descInputWrapper: { flexDirection: 'row', gap: 10 },
   descInput: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 15, height: 50, fontSize: 16 },
   confirmBtn: { width: 50, height: 50, backgroundColor: '#3870d8', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   cancelBtn: { width: 50, height: 50, backgroundColor: '#ef4444', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
 
-  // Autocomplete
   suggestionsBox: {
     position: 'absolute',
-    top: 185, // Ajustado para ficar logo abaixo do input de descrição
+    top: 185,
     left: 20, right: 20,
     backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', elevation: 5, maxHeight: 150
   },
   suggestionItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   suggestionText: { color: '#333' },
 
-  // --- LISTA ---
   listContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 10, zIndex: 1 },
   listTitle: { color: '#a1a1a1', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3870d8', padding: 15, borderRadius: 15, marginBottom: 12 },
-  itemCardEditing: { borderWidth: 2, borderColor: '#fbbf24' }, // Borda amarela quando editando
+  itemCardEditing: { borderWidth: 2, borderColor: '#fbbf24' },
   itemIconContainer: { backgroundColor: '#233860', padding: 10, borderRadius: 12 },
   itemInfo: { flex: 1, marginLeft: 15 },
   itemTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
   itemCategory: { color: '#a5a5a7', fontSize: 12 },
   itemValue: { fontSize: 14, fontWeight: 'bold' },
 
-  // --- MODAL LATERAL ---
   modalOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalBackdrop: { flex: 1 },
   sideMenu: { width: '85%', backgroundColor: '#fff', padding: 25, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, elevation: 10 },

@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, Dimensions, Platform, StatusBar, TouchableOpacity } from 'react-native';
+import { 
+  View, Text, StyleSheet, SafeAreaView, FlatList, Dimensions, Platform, StatusBar, 
+  TouchableOpacity, Modal, TouchableWithoutFeedback, Alert 
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { PieChart } from 'react-native-chart-kit';
@@ -10,15 +13,15 @@ const screenWidth = Dimensions.get('window').width;
 
 const CHART_COLORS = ['#3870d8', '#13ec6d', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899'];
 
-// --- DEFINIÇÃO DOS TIPOS (INTERFACE) ---
+// --- INTERFACES ---
 interface Transaction {
   id: string;
   description: string;
-  value: number; // Agora garantimos que é número
+  value: number; 
   type: 'income' | 'expense';
   date: string;
   time: string;
-  rawName?: string; // Opcional, usado na lógica interna
+  rawName?: string;
 }
 
 interface ChartData {
@@ -35,15 +38,17 @@ interface ExpenseGroup {
 }
 
 export default function SummaryScreen() {
+  // --- ESTADOS DE DADOS ---
   const [balance, setBalance] = useState<number>(0);
   const [totalExpense, setTotalExpense] = useState<number>(0);
   const [chartData, setChartData] = useState<ChartData[]>([]);
   const [expensesList, setExpensesList] = useState<ExpenseGroup[]>([]); 
-  
-  // Estado para armazenar TODOS os dados
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
-  // Estados de Filtro de Data
+  // --- ESTADOS DE UI ---
+  const [modalVisible, setModalVisible] = useState<boolean>(false);
+
+  // --- ESTADOS DE FILTRO DE DATA ---
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); 
   const [endDate, setEndDate] = useState<Date>(new Date());
   
@@ -60,6 +65,7 @@ export default function SummaryScreen() {
     applyDateFilter();
   }, [startDate, endDate, allTransactions]);
 
+  // --- CARREGAMENTO ---
   async function loadData() {
     try {
       const jsonValue = await AsyncStorage.getItem('@myfinance:transactions');
@@ -70,19 +76,26 @@ export default function SummaryScreen() {
     }
   }
 
+  // --- LÓGICA DE DADOS ---
   const parseDate = (dateString: string): Date => {
     const [day, month, year] = dateString.split('/').map(Number);
     return new Date(year, month - 1, day);
   };
 
   function applyDateFilter() {
-    if (allTransactions.length === 0) return;
+    // Se não tiver transações, zera tudo
+    if (allTransactions.length === 0) {
+        setBalance(0);
+        setTotalExpense(0);
+        setChartData([]);
+        setExpensesList([]);
+        return;
+    }
 
     const filteredList = allTransactions.filter(item => {
       const itemDate = parseDate(item.date);
       const start = new Date(startDate); start.setHours(0,0,0,0);
       const end = new Date(endDate); end.setHours(23,59,59,999);
-      
       return itemDate >= start && itemDate <= end;
     });
 
@@ -95,7 +108,7 @@ export default function SummaryScreen() {
     const expensesMap: { [key: string]: number } = {};
 
     list.forEach(item => {
-      const val = Number(item.value); // Garante number
+      const val = Number(item.value);
       if (item.type === 'income') {
         incomeTotal += val;
       } else {
@@ -117,7 +130,7 @@ export default function SummaryScreen() {
 
     setExpensesList(sortedExpenses);
 
-    // Gráfico
+    // Preparar Gráfico
     const top5 = sortedExpenses.slice(0, 5);
     const top5Total = top5.reduce((sum, item) => sum + item.value, 0);
     const othersValue = expenseTotal - top5Total;
@@ -143,6 +156,28 @@ export default function SummaryScreen() {
     setChartData(chartConfigData);
   }
 
+  // --- AÇÕES DO MODAL (+) ---
+  function handleClearAll() {
+    Alert.alert(
+      "Resetar Aplicativo",
+      "Isso apagará TODO o histórico de transações. Tem certeza?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Apagar Tudo", 
+          style: "destructive", 
+          onPress: async () => {
+            await AsyncStorage.removeItem('@myfinance:transactions');
+            setAllTransactions([]); // Limpa estado local
+            setModalVisible(false); // Fecha modal
+            Alert.alert("Sucesso", "Dados limpos.");
+          }
+        }
+      ]
+    );
+  }
+
+  // --- FILTROS DE DATA ---
   const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowPicker(false);
     if (selectedDate) {
@@ -182,12 +217,21 @@ export default function SummaryScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
+      {/* --- HEADER --- */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Resumo Financeiro</Text>
+        <View style={styles.headerTopRow}>
+            <Text style={styles.headerTitle}>Resumo Financeiro</Text>
+            {/* BOTÃO + */}
+            <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
+                <MaterialIcons name="add" size={30} color="#3870d8" />
+            </TouchableOpacity>
+        </View>
+
         <Text style={styles.labelBalance}>Saldo no Período</Text>
         <Text style={styles.valueBalance}>{formatCurrency(balance)}</Text>
       </View>
 
+      {/* --- BARRA DE FILTROS --- */}
       <View style={styles.filterBar}>
         <View style={styles.dateSelector}>
           <TouchableOpacity onPress={() => showDatepicker('start')} style={styles.dateBtn}>
@@ -211,6 +255,7 @@ export default function SummaryScreen() {
         </View>
       </View>
 
+      {/* Picker Invisível */}
       {showPicker && (
         <DateTimePicker
           value={pickerMode === 'start' ? startDate : endDate}
@@ -221,6 +266,7 @@ export default function SummaryScreen() {
         />
       )}
 
+      {/* --- CONTEÚDO --- */}
       <View style={styles.content}>
         <Text style={styles.sectionTitle}>Gastos do Período</Text>
         
@@ -285,17 +331,67 @@ export default function SummaryScreen() {
           )}
         />
       </View>
+
+      {/* --- MODAL LATERAL --- */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={styles.modalBackdrop} />
+          </TouchableWithoutFeedback>
+
+          <View style={styles.sideMenu}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Opções</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <MaterialIcons name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.helperText}>Gerenciamento de dados.</Text>
+
+            {/* ÁREA DE PERIGO (Excluir Tudo) */}
+            <View style={styles.dangerZone}>
+              <TouchableOpacity style={styles.btnDelete} onPress={handleClearAll}>
+                <MaterialIcons name="delete-forever" size={24} color="#ef4444" />
+                <Text style={styles.btnDeleteText}>Apagar todas as atividades</Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
-  header: { backgroundColor: '#3870d8', padding: 20, paddingBottom: 30, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, alignItems: 'center', marginBottom: 10, elevation: 5 },
-  headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
+  
+  // Header Ajustado
+  header: { 
+      backgroundColor: '#3870d8', padding: 20, paddingBottom: 30, 
+      borderBottomLeftRadius: 30, borderBottomRightRadius: 30, 
+      alignItems: 'center', marginBottom: 10, elevation: 5 
+  },
+  headerTopRow: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      width: '100%', marginBottom: 10
+  },
+  headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+  btnAddHeader: {
+    backgroundColor: '#fff', width: 40, height: 40, borderRadius: 20,
+    justifyContent: 'center', alignItems: 'center'
+  },
   labelBalance: { color: '#e2e8f0', fontSize: 12 },
   valueBalance: { color: '#fff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
   
+  // Filtro
   filterBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginHorizontal: 20, marginTop: -25,
@@ -314,12 +410,15 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 20 },
   sectionTitle: { color: '#334155', fontSize: 18, fontWeight: 'bold', marginBottom: 10, marginTop: 5 },
   
+  // Gráfico
   chartContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 10, position: 'relative', height: 240 },
   donutHole: { position: 'absolute', width: 100, height: 100, backgroundColor: '#fff', borderRadius: 50, left: (screenWidth / 4) - 44, justifyContent: 'center', alignItems: 'center', elevation: 4 },
   donutLabel: { color: '#64748b', fontSize: 9, fontWeight: 'bold' },
   donutValue: { color: '#3870d8', fontSize: 14, fontWeight: 'bold' },
   emptyContainer: { height: 150, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 15, marginBottom: 20, borderWidth: 1, borderColor: '#e2e8f0' },
   emptyText: { color: '#94a3b8' },
+  
+  // Lista
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 10, borderWidth: 1, borderColor: '#f1f5f9', elevation: 1 },
   rankBadge: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   rankText: { color: '#fff', fontWeight: 'bold', fontSize: 12 },
@@ -328,5 +427,17 @@ const styles = StyleSheet.create({
   progressBarBackground: { height: 4, backgroundColor: '#f1f5f9', borderRadius: 2, width: '100%' },
   progressBarFill: { height: '100%', borderRadius: 2 },
   itemValue: { fontSize: 14, fontWeight: 'bold', color: '#ef4444' },
-  itemPercent: { fontSize: 11, color: '#94a3b8', textAlign: 'right' }
+  itemPercent: { fontSize: 11, color: '#94a3b8', textAlign: 'right' },
+
+  // MODAL LATERAL
+  modalOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalBackdrop: { flex: 1 },
+  sideMenu: { width: '85%', backgroundColor: '#fff', padding: 25, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, elevation: 10 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#3870d8' },
+  helperText: { color: '#64748b', fontSize: 14, marginBottom: 20 },
+  
+  dangerZone: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 },
+  btnDelete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10 },
+  btnDeleteText: { color: '#ef4444', fontWeight: '600', fontSize: 14 }
 });
