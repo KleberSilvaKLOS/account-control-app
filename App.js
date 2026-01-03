@@ -54,7 +54,7 @@ export default function App() {
           component={FixedBillsScreen} 
           options={{
             tabBarIcon: ({ color }) => (
-            <MaterialIcons name="pie-chart" size={26} color={color} />
+            <MaterialIcons name="receipt-long" size={26} color={color} />
             )
           }}
         />
