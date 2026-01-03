@@ -9,11 +9,34 @@ import {
   Alert,
   StyleSheet,
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
+
+  // --- LÓGICA DE BIOMETRIA ---
+  const handleBiometry = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      return Alert.alert(
+        'Aviso', 
+        'Biometria não disponível ou não cadastrada neste aparelho.'
+      );
+    }
+
+    const auth = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Acesse seu MyFinance',
+      fallbackLabel: 'Usar senha',
+    });
+
+    if (auth.success) {
+      handleLoginSuccess();
+    }
+  };
 
   const handleLoginSuccess = async () => {
     setLoading(true);
@@ -45,21 +68,32 @@ export default function LoginScreen({ navigation }: any) {
           </Text>
         </View>
 
-        {/* BOTÃO DE ACESSO */}
+        {/* BOTÕES DE ACESSO */}
         <View style={styles.buttonContainer}>
           {loading ? (
             <ActivityIndicator size="large" color="#3870d8" />
           ) : (
-            <TouchableOpacity
-              style={styles.guestBtn}
-              onPress={handleLoginSuccess}
-              activeOpacity={0.8}
-            >
-              <MaterialIcons name="person-outline" size={24} color="#3870d8" />
-              <Text style={styles.guestText}>
-                Continuar sem cadastro
-              </Text>
-            </TouchableOpacity>
+            <>
+              {/* BOTÃO DE BIOMETRIA */}
+              <TouchableOpacity
+                style={styles.biometryBtn}
+                onPress={handleBiometry}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="finger-print" size={24} color="#fff" />
+                <Text style={styles.biometryText}>Acessar com Biometria</Text>
+              </TouchableOpacity>
+
+              {/* BOTÃO DE CONVIDADO */}
+              <TouchableOpacity
+                style={styles.guestBtn}
+                onPress={handleLoginSuccess}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="person-outline" size={24} color="#3870d8" />
+                <Text style={styles.guestText}>Continuar sem cadastro</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
 
@@ -71,9 +105,6 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
-/* ===========================
-   ESTILOS
-=========================== */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -111,6 +142,25 @@ const styles = StyleSheet.create({
   buttonContainer: {
     width: '100%',
     gap: 15,
+  },
+  biometryBtn: {
+    flexDirection: 'row',
+    height: 55,
+    borderRadius: 15,
+    backgroundColor: '#3870d8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    elevation: 3,
+    shadowColor: '#3870d8',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  biometryText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   guestBtn: {
     flexDirection: 'row',

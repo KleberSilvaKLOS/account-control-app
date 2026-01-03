@@ -18,7 +18,6 @@ import LoginScreen from './src/screens/login/login';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// --- ESTILOS QUE ESTAVAM FALTANDO ---
 const styles = StyleSheet.create({
   iconFocused: {
     width: 55,
@@ -44,6 +43,8 @@ const styles = StyleSheet.create({
 function TabNavigator() {
   return (
     <Tab.Navigator
+      // FORÇA A ABERTURA NA HOME SEM MUDAR A POSIÇÃO DO ÍCONE
+      initialRouteName="Home" 
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
@@ -64,6 +65,7 @@ function TabNavigator() {
         },
       }}
     >
+      {/* 1ª ABA: ESQUERDA */}
       <Tab.Screen 
         name="Gastos" 
         component={ExpensesScreen} 
@@ -75,6 +77,8 @@ function TabNavigator() {
           ),
         }}
       />
+
+      {/* 2ª ABA: MEIO-ESQUERDA */}
       <Tab.Screen 
         name="Fixas" 
         component={FixedBillsScreen} 
@@ -86,6 +90,8 @@ function TabNavigator() {
           ),
         }}
       />
+
+      {/* 3ª ABA: CENTRO (HOME) */}
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
@@ -97,6 +103,8 @@ function TabNavigator() {
           ),
         }}
       />
+
+      {/* 4ª ABA: MEIO-DIREITA */}
       <Tab.Screen 
         name="Resumo" 
         component={SummaryScreen} 
@@ -108,6 +116,8 @@ function TabNavigator() {
           ),
         }}
       />
+
+      {/* 5ª ABA: DIREITA */}
       <Tab.Screen 
         name="Investimentos" 
         component={InvestmentsScreen} 
@@ -143,8 +153,12 @@ export default function App() {
   return (
     <NavigationContainer>
       <StatusBar style="light" backgroundColor="#3870d8" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {/* Remova a condicional !isLogged apenas se quiser que a rota exista sempre */}
+      <Stack.Navigator 
+        // Se você quer que SEMPRE peça login ao abrir o app, 
+        // mude para initialRouteName="Login"
+        initialRouteName={isLogged ? 'MainTabs' : 'Login'} 
+        screenOptions={{ headerShown: false }}
+      >
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={TabNavigator} />
       </Stack.Navigator>
