@@ -3,29 +3,52 @@ import { View, Text, StyleSheet, SafeAreaView, FlatList, Dimensions, Platform, S
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { PieChart } from 'react-native-chart-kit';
-import DateTimePicker from '@react-native-community/datetimepicker'; 
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'; 
 import { MaterialIcons } from '@expo/vector-icons';
 
 const screenWidth = Dimensions.get('window').width;
 
 const CHART_COLORS = ['#3870d8', '#13ec6d', '#ef4444', '#f59e0b', '#8b5cf6', '#ec4899'];
 
+// --- DEFINIÇÃO DOS TIPOS (INTERFACE) ---
+interface Transaction {
+  id: string;
+  description: string;
+  value: number; // Agora garantimos que é número
+  type: 'income' | 'expense';
+  date: string;
+  time: string;
+  rawName?: string; // Opcional, usado na lógica interna
+}
+
+interface ChartData {
+  name: string;
+  value: number;
+  color: string;
+  legendFontColor: string;
+  legendFontSize: number;
+}
+
+interface ExpenseGroup {
+  rawName: string;
+  value: number;
+}
+
 export default function SummaryScreen() {
-  const [balance, setBalance] = useState(0);
-  const [totalExpense, setTotalExpense] = useState(0);
-  const [chartData, setChartData] = useState([]);
-  const [expensesList, setExpensesList] = useState([]); 
+  const [balance, setBalance] = useState<number>(0);
+  const [totalExpense, setTotalExpense] = useState<number>(0);
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [expensesList, setExpensesList] = useState<ExpenseGroup[]>([]); 
   
-  // Estado para armazenar TODOS os dados (sem filtro)
-  const [allTransactions, setAllTransactions] = useState([]);
+  // Estado para armazenar TODOS os dados
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
 
   // Estados de Filtro de Data
-  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); // 1º dia do mês
-  const [endDate, setEndDate] = useState(new Date()); // Hoje
+  const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); 
+  const [endDate, setEndDate] = useState<Date>(new Date());
   
-  // Controle do Picker (Calendário)
-  const [showPicker, setShowPicker] = useState(false);
-  const [pickerMode, setPickerMode] = useState('start'); // 'start' ou 'end'
+  const [showPicker, setShowPicker] = useState<boolean>(false);
+  const [pickerMode, setPickerMode] = useState<'start' | 'end'>('start');
 
   useFocusEffect(
     useCallback(() => {
@@ -33,7 +56,6 @@ export default function SummaryScreen() {
     }, [])
   );
 
-  // Sempre que as datas ou os dados mudarem, reaplica o filtro
   useEffect(() => {
     applyDateFilter();
   }, [startDate, endDate, allTransactions]);
@@ -41,26 +63,23 @@ export default function SummaryScreen() {
   async function loadData() {
     try {
       const jsonValue = await AsyncStorage.getItem('@myfinance:transactions');
-      const list = jsonValue != null ? JSON.parse(jsonValue) : [];
-      setAllTransactions(list); // Salva os dados brutos
+      const list: Transaction[] = jsonValue != null ? JSON.parse(jsonValue) : [];
+      setAllTransactions(list);
     } catch (e) {
       console.log(e);
     }
   }
 
-  // Função auxiliar para converter "DD/MM/AAAA" em objeto Date do JS
-  const parseDate = (dateString) => {
-    const [day, month, year] = dateString.split('/');
+  const parseDate = (dateString: string): Date => {
+    const [day, month, year] = dateString.split('/').map(Number);
     return new Date(year, month - 1, day);
   };
 
   function applyDateFilter() {
     if (allTransactions.length === 0) return;
 
-    // Filtra a lista baseada no intervalo
     const filteredList = allTransactions.filter(item => {
       const itemDate = parseDate(item.date);
-      // Ajusta as horas para comparar apenas as datas (00:00:00 até 23:59:59)
       const start = new Date(startDate); start.setHours(0,0,0,0);
       const end = new Date(endDate); end.setHours(23,59,59,999);
       
@@ -70,13 +89,13 @@ export default function SummaryScreen() {
     processData(filteredList);
   }
 
-  function processData(list) {
+  function processData(list: Transaction[]) {
     let incomeTotal = 0;
     let expenseTotal = 0;
-    const expensesMap = {};
+    const expensesMap: { [key: string]: number } = {};
 
     list.forEach(item => {
-      const val = parseFloat(item.value);
+      const val = Number(item.value); // Garante number
       if (item.type === 'income') {
         incomeTotal += val;
       } else {
@@ -92,7 +111,7 @@ export default function SummaryScreen() {
     setBalance(incomeTotal - expenseTotal);
     setTotalExpense(expenseTotal);
 
-    const sortedExpenses = Object.keys(expensesMap)
+    const sortedExpenses: ExpenseGroup[] = Object.keys(expensesMap)
       .map(key => ({ rawName: key, value: expensesMap[key] }))
       .sort((a, b) => b.value - a.value);
 
@@ -103,7 +122,7 @@ export default function SummaryScreen() {
     const top5Total = top5.reduce((sum, item) => sum + item.value, 0);
     const othersValue = expenseTotal - top5Total;
 
-    let chartConfigData = top5.map((item, index) => ({
+    let chartConfigData: ChartData[] = top5.map((item, index) => ({
       name: item.rawName,
       value: item.value,
       color: CHART_COLORS[index % CHART_COLORS.length],
@@ -124,8 +143,7 @@ export default function SummaryScreen() {
     setChartData(chartConfigData);
   }
 
-  // Funções para manipular o DatePicker
-  const onChangeDate = (event, selectedDate) => {
+  const onChangeDate = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowPicker(false);
     if (selectedDate) {
       if (pickerMode === 'start') {
@@ -136,12 +154,11 @@ export default function SummaryScreen() {
     }
   };
 
-  const showDatepicker = (mode) => {
+  const showDatepicker = (mode: 'start' | 'end') => {
     setPickerMode(mode);
     setShowPicker(true);
   };
 
-  // Botões de Atalho Rápido
   const setFilterThisMonth = () => {
     const now = new Date();
     setStartDate(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -156,23 +173,21 @@ export default function SummaryScreen() {
     setEndDate(now);
   };
 
-  const formatDateDisplay = (date) => {
+  const formatDateDisplay = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   };
 
-  const formatCurrency = (val) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* --- HEADER --- */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Resumo Financeiro</Text>
         <Text style={styles.labelBalance}>Saldo no Período</Text>
         <Text style={styles.valueBalance}>{formatCurrency(balance)}</Text>
       </View>
 
-      {/* --- BARRA DE FILTRO SUTIL --- */}
       <View style={styles.filterBar}>
         <View style={styles.dateSelector}>
           <TouchableOpacity onPress={() => showDatepicker('start')} style={styles.dateBtn}>
@@ -196,20 +211,17 @@ export default function SummaryScreen() {
         </View>
       </View>
 
-      {/* Date Picker Component (Invisível até ser chamado) */}
       {showPicker && (
         <DateTimePicker
           value={pickerMode === 'start' ? startDate : endDate}
           mode="date"
           display="default"
           onChange={onChangeDate}
-          maximumDate={new Date()} // Não deixa selecionar futuro
+          maximumDate={new Date()}
         />
       )}
 
       <View style={styles.content}>
-        
-        {/* --- GRÁFICO --- */}
         <Text style={styles.sectionTitle}>Gastos do Período</Text>
         
         {chartData.length > 0 ? (
@@ -239,7 +251,6 @@ export default function SummaryScreen() {
           </View>
         )}
 
-        {/* --- LISTA --- */}
         <Text style={styles.sectionTitle}>Ranking Detalhado</Text>
         
         <FlatList
@@ -266,7 +277,9 @@ export default function SummaryScreen() {
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.itemValue}>- {formatCurrency(item.value)}</Text>
-                <Text style={styles.itemPercent}>{((item.value / totalExpense) * 100).toFixed(1)}%</Text>
+                <Text style={styles.itemPercent}>
+                    {totalExpense > 0 ? ((item.value / totalExpense) * 100).toFixed(1) : 0}%
+                </Text>
               </View>
             </View>
           )}
@@ -283,18 +296,11 @@ const styles = StyleSheet.create({
   labelBalance: { color: '#e2e8f0', fontSize: 12 },
   valueBalance: { color: '#fff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
   
-  // --- ESTILOS DO FILTRO ---
   filterBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: -25, // Sobe para ficar sobre o header azul
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 10,
-    elevation: 4,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: 20, marginTop: -25,
+    backgroundColor: '#fff', borderRadius: 15, padding: 10,
+    elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
     marginBottom: 10,
   },
   dateSelector: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -308,7 +314,6 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 20 },
   sectionTitle: { color: '#334155', fontSize: 18, fontWeight: 'bold', marginBottom: 10, marginTop: 5 },
   
-  // Gráfico e Lista (Mantidos iguais)
   chartContainer: { alignItems: 'center', justifyContent: 'center', marginBottom: 10, position: 'relative', height: 240 },
   donutHole: { position: 'absolute', width: 100, height: 100, backgroundColor: '#fff', borderRadius: 50, left: (screenWidth / 4) - 44, justifyContent: 'center', alignItems: 'center', elevation: 4 },
   donutLabel: { color: '#64748b', fontSize: 9, fontWeight: 'bold' },
