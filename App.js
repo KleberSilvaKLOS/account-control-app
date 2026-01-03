@@ -10,6 +10,7 @@ import HomeScreen from './src/screens/home/home';
 import ExpensesScreen from './src/screens/expenses/expenses';
 import SummaryScreen from './src/screens/summary/summary';
 import FixedBillsScreen from './src/screens/fixedbills/fixedbills';
+import InvestmentsScreen from './src/screens/investments/investments';
 
 const Tab = createBottomTabNavigator();
 
@@ -109,10 +110,10 @@ export default function App() {
           }}
         />
 
-        {/* 4. RESUMO */}
+        {/* 4. INVESTIMENTOS */}
         <Tab.Screen 
           name="Investimentos" 
-          component={SummaryScreen} 
+          component={InvestmentsScreen} 
           options={{
             tabBarIcon: ({ focused }) => (
               <View style={focused ? styles.iconFocused : styles.iconUnfocused}>
