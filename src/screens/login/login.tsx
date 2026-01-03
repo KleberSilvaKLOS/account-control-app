@@ -8,20 +8,20 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Image, // Adicionado para usar o icon.png
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
-import { useTheme } from '../../context/ThemeContext'; // Importando o contexto de tema
+import { useTheme } from '../../context/ThemeContext';
 
 export default function LoginScreen({ navigation }: any) {
-  const { isDark } = useTheme(); // Hook para detectar o tema global
+  const { isDark } = useTheme();
   const [loading, setLoading] = useState(false);
   const [hasPin, setHasPin] = useState(false);
   const [inputPin, setInputPin] = useState('');
 
-  // Paleta de cores dinâmica para a tela de Login
   const theme = {
     background: isDark ? '#0f172a' : '#ffffff',
     text: isDark ? '#f8fafc' : '#1e293b',
@@ -52,21 +52,20 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handlePinPress = (num: string) => {
-    if (inputPin.length < 6) {
-      setInputPin(inputPin + num);
+    // Ajustado para aceitar apenas 4 dígitos, conforme a regra de negócio do seu app
+    if (inputPin.length < 4) {
+      const newPin = inputPin + num;
+      setInputPin(newPin);
+      
+      // Verificação automática ao chegar no 4º dígito
+      if (newPin.length === 4) {
+        verifyPin(newPin);
+      }
     }
   };
 
   const handleDelete = () => {
     setInputPin(inputPin.slice(0, -1));
-  };
-
-  const handleManualLogin = () => {
-    if (inputPin.length < 4) {
-      Alert.alert("Aviso", "O PIN deve ter pelo menos 4 dígitos.");
-      return;
-    }
-    verifyPin(inputPin);
   };
 
   const verifyPin = async (pinAttempt: string) => {
@@ -79,6 +78,14 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
+  const handleManualLogin = () => {
+    if (inputPin.length < 4) {
+      Alert.alert("Aviso", "O PIN deve ter 4 dígitos.");
+      return;
+    }
+    verifyPin(inputPin);
+  };
+
   const handleBiometry = async (isAuto = false) => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
@@ -89,7 +96,7 @@ export default function LoginScreen({ navigation }: any) {
     }
 
     const auth = await LocalAuthentication.authenticateAsync({
-      promptMessage: 'Acesse seu MyFinance',
+      promptMessage: 'Acesse seu MyFinances',
       fallbackLabel: 'Usar PIN',
     });
 
@@ -117,9 +124,13 @@ export default function LoginScreen({ navigation }: any) {
       <View style={styles.content}>
         <View style={styles.header}>
           <View style={[styles.logoCircle, { backgroundColor: theme.card }]}>
-            <MaterialIcons name="payments" size={50} color="#3870d8" />
+            {/* Trocado MaterialIcons pela sua Image personalizada */}
+            <Image 
+              source={require('./icon.png')} 
+              style={styles.logoImage} 
+            />
           </View>
-          <Text style={[styles.title, { color: theme.text }]}>MyFinance</Text>
+          <Text style={[styles.title, { color: theme.text }]}>MyFinances</Text>
         </View>
 
         <View style={styles.authContainer}>
@@ -127,7 +138,7 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.pinArea}>
               <Text style={[styles.pinLabel, { color: theme.subtext }]}>Digite seu PIN</Text>
               <View style={styles.dotsRow}>
-                {[1, 2, 3, 4, 5, 6].map((_, i) => (
+                {[1, 2, 3, 4].map((_, i) => ( // Ajustado para 4 pontos
                   <View 
                     key={i} 
                     style={[
@@ -189,6 +200,12 @@ export default function LoginScreen({ navigation }: any) {
 
         <Text style={[styles.footerText, { color: theme.subtext }]}>Proteja seus dados com coragem e sabedoria.</Text>
       </View>
+      
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#3870d8" />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -197,13 +214,26 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { flex: 1, padding: 20, justifyContent: 'space-between', alignItems: 'center' },
   header: { alignItems: 'center', marginTop: 20 },
-  logoCircle: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  logoCircle: { 
+    width: 90, 
+    height: 90, 
+    borderRadius: 45, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginBottom: 10,
+    overflow: 'hidden' // Garante que a imagem não saia do círculo
+  },
+  logoImage: {
+    width: 60,
+    height: 60,
+    resizeMode: 'contain'
+  },
   title: { fontSize: 28, fontWeight: 'bold' },
   authContainer: { width: '100%', alignItems: 'center' },
   pinArea: { alignItems: 'center', width: '100%', marginBottom: 30 },
   pinLabel: { fontSize: 16, marginBottom: 15, fontWeight: '500' },
-  dotsRow: { flexDirection: 'row', gap: 12, marginBottom: 25 },
-  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5 },
+  dotsRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
+  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5 },
   dotFilled: { backgroundColor: '#3870d8', borderColor: '#3870d8' },
   numPad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', width: 280, gap: 15 },
   numBtn: { width: 65, height: 65, borderRadius: 35, justifyContent: 'center', alignItems: 'center' },
@@ -218,4 +248,10 @@ const styles = StyleSheet.create({
   guestBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
   guestText: { fontSize: 14 },
   footerText: { fontSize: 11, marginBottom: 10 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  }
 });
