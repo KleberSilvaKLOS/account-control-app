@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,25 +12,64 @@ import {
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function LoginScreen({ navigation }: any) {
   const [loading, setLoading] = useState(false);
+  const [hasPin, setHasPin] = useState(false);
+  const [inputPin, setInputPin] = useState('');
 
-  // --- LÓGICA DE BIOMETRIA ---
+  useFocusEffect(
+    React.useCallback(() => {
+      checkPinStatus();
+      setInputPin('');
+    }, [])
+  );
+
+  const checkPinStatus = async () => {
+    const savedPin = await AsyncStorage.getItem('@myfinance:pin');
+    setHasPin(!!savedPin);
+  };
+
+  const handlePinPress = (num: string) => {
+    if (inputPin.length < 6) {
+      setInputPin(inputPin + num);
+    }
+  };
+
+  const handleDelete = () => {
+    setInputPin(inputPin.slice(0, -1));
+  };
+
+  const handleManualLogin = () => {
+    if (inputPin.length < 4) {
+      Alert.alert("Aviso", "O PIN deve ter pelo menos 4 dígitos.");
+      return;
+    }
+    verifyPin(inputPin);
+  };
+
+  const verifyPin = async (pinAttempt: string) => {
+    const savedPin = await AsyncStorage.getItem('@myfinance:pin');
+    if (pinAttempt === savedPin) {
+      handleLoginSuccess();
+    } else {
+      Alert.alert("Erro", "PIN incorreto");
+      setInputPin('');
+    }
+  };
+
   const handleBiometry = async () => {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
 
     if (!hasHardware || !isEnrolled) {
-      return Alert.alert(
-        'Aviso', 
-        'Biometria não disponível ou não cadastrada neste aparelho.'
-      );
+      return Alert.alert('Aviso', 'Biometria não disponível.');
     }
 
     const auth = await LocalAuthentication.authenticateAsync({
       promptMessage: 'Acesse seu MyFinance',
-      fallbackLabel: 'Usar senha',
+      fallbackLabel: 'Usar PIN',
     });
 
     if (auth.success) {
@@ -44,8 +83,7 @@ export default function LoginScreen({ navigation }: any) {
       await AsyncStorage.setItem('@myfinance:logged', 'true');
       navigation.replace('MainTabs');
     } catch (error) {
-      console.error('Erro ao navegar:', error);
-      Alert.alert('Erro', 'Não foi possível acessar a tela principal.');
+      Alert.alert('Erro', 'Não foi possível acessar.');
     } finally {
       setLoading(false);
     }
@@ -56,155 +94,96 @@ export default function LoginScreen({ navigation }: any) {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.content}>
-        {/* LOGO E CABEÇALHO */}
         <View style={styles.header}>
           <View style={styles.logoCircle}>
-            <MaterialIcons name="payments" size={60} color="#3870d8" />
+            <MaterialIcons name="payments" size={50} color="#3870d8" />
           </View>
-
           <Text style={styles.title}>MyFinance</Text>
-          <Text style={styles.subtitle}>
-            Sua gestão financeira na palma da mão.
-          </Text>
         </View>
 
-        {/* BOTÕES DE ACESSO */}
-        <View style={styles.buttonContainer}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#3870d8" />
-          ) : (
-            <>
-              {/* BOTÃO DE BIOMETRIA */}
-              <TouchableOpacity
-                style={styles.biometryBtn}
-                onPress={handleBiometry}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="finger-print" size={24} color="#fff" />
-                <Text style={styles.biometryText}>Acessar com Biometria</Text>
-              </TouchableOpacity>
+        <View style={styles.authContainer}>
+          {hasPin && (
+            <View style={styles.pinArea}>
+              <Text style={styles.pinLabel}>Digite seu PIN</Text>
+              <View style={styles.dotsRow}>
+                {[1, 2, 3, 4, 5, 6].map((_, i) => (
+                  <View key={i} style={[styles.dot, inputPin.length > i && styles.dotFilled]} />
+                ))}
+              </View>
 
-              {/* BOTÃO DE CONVIDADO */}
-              <TouchableOpacity
-                style={styles.guestBtn}
-                onPress={handleLoginSuccess}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="person-outline" size={24} color="#3870d8" />
-                <Text style={styles.guestText}>Continuar sem cadastro</Text>
-              </TouchableOpacity>
+              <View style={styles.numPad}>
+                {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((num) => (
+                  <TouchableOpacity key={num} style={styles.numBtn} onPress={() => handlePinPress(num)}>
+                    <Text style={styles.numText}>{num}</Text>
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Botão Apagar */}
+                <TouchableOpacity style={styles.numBtn} onPress={handleDelete}>
+                  <MaterialIcons name="backspace" size={24} color="#64748b" />
+                </TouchableOpacity>
 
-              {/* BOTÃO DE CADASTRO POR E-MAIL (NOVO) */}
-              <TouchableOpacity
-                style={styles.emailBtn}
-                onPress={() => navigation.navigate('email')}
-                activeOpacity={0.8}
-              >
-                <MaterialIcons name="mail-outline" size={24} color="#3870d8" />
-                <Text style={styles.emailText}>Cadastrar PIN por E-mail</Text>
+                <TouchableOpacity style={styles.numBtn} onPress={() => handlePinPress('0')}>
+                  <Text style={styles.numText}>0</Text>
+                </TouchableOpacity>
+
+                {/* Botão Enter */}
+                <TouchableOpacity style={[styles.numBtn, styles.enterBtn]} onPress={handleManualLogin}>
+                  <MaterialIcons name="check" size={30} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.bioLink} onPress={handleBiometry}>
+                <Ionicons name="finger-print" size={20} color="#3870d8" />
+                <Text style={styles.bioLinkText}>Usar Biometria</Text>
               </TouchableOpacity>
-            </>
+            </View>
           )}
+
+          {/* BOTÕES DE CADASTRO (Sempre visíveis ou para novos usuários) */}
+          <View style={styles.registrationArea}>
+            {!hasPin && <Text style={styles.welcomeText}>Bem-vindo! Comece agora:</Text>}
+            
+            <TouchableOpacity style={styles.emailBtn} onPress={() => navigation.navigate('email')}>
+              <MaterialIcons name="mail-outline" size={22} color="#3870d8" />
+              <Text style={styles.emailText}>{hasPin ? "Trocar conta / Novo PIN" : "Cadastrar PIN por E-mail"}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.guestBtn} onPress={handleLoginSuccess}>
+              <Text style={styles.guestText}>Entrar como Convidado</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        <Text style={styles.footerText}>
-          Proteja seus dados com coragem e sabedoria.
-        </Text>
+        <Text style={styles.footerText}>Proteja seus dados com coragem e sabedoria.</Text>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    padding: 30,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-  },
-  header: {
-    alignItems: 'center',
-  },
-  logoCircle: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#f1f5f9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1e293b',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 10,
-  },
-  buttonContainer: {
-    width: '100%',
-    gap: 15,
-  },
-  biometryBtn: {
-    flexDirection: 'row',
-    height: 55,
-    borderRadius: 15,
-    backgroundColor: '#3870d8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-    elevation: 3,
-    shadowColor: '#3870d8',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  biometryText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  guestBtn: {
-    flexDirection: 'row',
-    height: 55,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#3870d8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  guestText: {
-    color: '#3870d8',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emailBtn: {
-    flexDirection: 'row',
-    height: 55,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: '#3870d8',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  emailText: {
-    color: '#3870d8',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footerText: {
-    color: '#94a3b8',
-    fontSize: 12,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { flex: 1, padding: 20, justifyContent: 'space-between', alignItems: 'center' },
+  header: { alignItems: 'center', marginTop: 20 },
+  logoCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#f1f5f9', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#1e293b' },
+  authContainer: { width: '100%', alignItems: 'center' },
+  pinArea: { alignItems: 'center', width: '100%', marginBottom: 30 },
+  pinLabel: { fontSize: 16, color: '#64748b', marginBottom: 15, fontWeight: '500' },
+  dotsRow: { flexDirection: 'row', gap: 12, marginBottom: 25 },
+  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1.5, borderColor: '#cbd5e1' },
+  dotFilled: { backgroundColor: '#3870d8', borderColor: '#3870d8' },
+  numPad: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', width: 280, gap: 15 },
+  numBtn: { width: 65, height: 65, borderRadius: 35, backgroundColor: '#f8fafc', justifyContent: 'center', alignItems: 'center' },
+  enterBtn: { backgroundColor: '#3870d8' },
+  numText: { fontSize: 22, fontWeight: 'bold', color: '#1e293b' },
+  bioLink: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20 },
+  bioLinkText: { color: '#3870d8', fontWeight: '600' },
+  registrationArea: { width: '100%', gap: 12, marginTop: 10 },
+  welcomeText: { textAlign: 'center', color: '#64748b', marginBottom: 10 },
+  emailBtn: { flexDirection: 'row', height: 50, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center', gap: 10 },
+  emailText: { color: '#3870d8', fontWeight: '600' },
+  guestBtn: { height: 50, justifyContent: 'center', alignItems: 'center' },
+  guestText: { color: '#94a3b8', fontSize: 14 },
+  footerText: { color: '#cbd5e1', fontSize: 11, marginBottom: 10 },
 });

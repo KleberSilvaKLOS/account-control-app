@@ -130,16 +130,19 @@ export default function App() {
   const [isLogged, setIsLogged] = useState(null);
 
   useEffect(() => {
-    async function checkLogin() {
-      try {
-        const logged = await AsyncStorage.getItem('@myfinance:logged');
-        setIsLogged(logged === 'true');
-      } catch (e) {
-        setIsLogged(false);
+  async function checkLogin() {
+    try {
+      const logged = await AsyncStorage.getItem('@myfinance:logged');
+      const savedPin = await AsyncStorage.getItem('@myfinance:pin');
+      
+      // Se tiver logado e tiver PIN, vai direto para a Home ou pede PIN
+      setIsLogged(logged === 'true' && savedPin !== null);
+        } catch (e) {
+          setIsLogged(false);
+        }
       }
-    }
-    checkLogin();
-  }, []);
+      checkLogin();
+    }, []);
 
   if (isLogged === null) return null;
 
