@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, SafeAreaView, 
   TextInput, TouchableOpacity, Keyboard, Platform, StatusBar, Alert, Modal, TouchableWithoutFeedback 
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native'; // Importação necessária para sincronia
 
 // Definindo o formato dos dados
 interface Transaction {
@@ -34,7 +35,7 @@ export default function ExpensesScreen() {
   const [modalVisible, setModalVisible] = useState<boolean>(false); 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Estado de Privacidade
+  // --- ESTADO DE PRIVACIDADE SINCRONIZADO ---
   const [isVisible, setIsVisible] = useState(true);
 
   const [description, setDescription] = useState<string>('');
@@ -46,10 +47,26 @@ export default function ExpensesScreen() {
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
 
-  useEffect(() => {
-    loadData();
-    loadCategories();
-  }, []);
+  // --- LOGICA DE SINCRONIZAÇÃO GLOBAL ---
+  useFocusEffect(
+    useCallback(() => {
+      const loadSyncData = async () => {
+        const saved = await AsyncStorage.getItem('@myfinance:visibility');
+        if (saved !== null) {
+          setIsVisible(JSON.parse(saved));
+        }
+        loadData();
+        loadCategories();
+      };
+      loadSyncData();
+    }, [])
+  );
+
+  const toggleVisibility = async () => {
+    const newValue = !isVisible;
+    setIsVisible(newValue);
+    await AsyncStorage.setItem('@myfinance:visibility', JSON.stringify(newValue));
+  };
 
   useEffect(() => {
     calculateTotals(list);
@@ -134,24 +151,18 @@ export default function ExpensesScreen() {
       Alert.alert('Atenção', 'Informe o valor!');
       return;
     }
-
     const numericValue = parseFloat(value.replace(',', '.'));
     if (isNaN(numericValue)) {
       Alert.alert('Erro', 'Valor inválido');
       return;
     }
-
     if (description.trim() === '') {
       Alert.alert('Atenção', 'Informe uma descrição para o lançamento!');
       return;
     }
-
     let newList = [...list];
-
     if (editingId) {
-      newList = newList.map(item => item.id === editingId ? {
-        ...item, description, value: numericValue, type
-      } : item);
+      newList = newList.map(item => item.id === editingId ? { ...item, description, value: numericValue, type } : item);
       setEditingId(null);
     } else {
       const newTransaction: Transaction = {
@@ -162,42 +173,25 @@ export default function ExpensesScreen() {
       };
       newList = [newTransaction, ...newList];
     }
-
     setList(newList);
     saveData(newList);
-    
-    setValue('');
-    setDescription('');
-    setShowSuggestions(false);
-    Keyboard.dismiss();
+    setValue(''); setDescription(''); setShowSuggestions(false); Keyboard.dismiss();
   }
 
   const openEditTransaction = (item: Transaction) => {
-    setEditingId(item.id);
-    setDescription(item.description);
-    setValue(String(item.value)); 
-    setType(item.type);
+    setEditingId(item.id); setDescription(item.description); setValue(String(item.value)); setType(item.type);
   };
 
   const cancelEditing = () => {
-    setEditingId(null);
-    setValue('');
-    setDescription('');
-    setShowSuggestions(false);
-    Keyboard.dismiss();
+    setEditingId(null); setValue(''); setDescription(''); setShowSuggestions(false); Keyboard.dismiss();
   }
 
   function handleClearAll() {
     Alert.alert("Resetar App", "Apagar todos os lançamentos?", [
       { text: "Cancelar", style: "cancel" },
-      { 
-        text: "Apagar", style: "destructive", 
-        onPress: async () => {
-          setList([]);
-          await AsyncStorage.removeItem('@myfinance:transactions');
-          setModalVisible(false);
-        }
-      }
+      { text: "Apagar", style: "destructive", onPress: async () => {
+          setList([]); await AsyncStorage.removeItem('@myfinance:transactions'); setModalVisible(false);
+      }}
     ]);
   }
 
@@ -235,16 +229,14 @@ export default function ExpensesScreen() {
       {/* HEADER CENTRALIZADO */}
       <View style={styles.summaryContainer}>
         <View style={styles.headerContent}>
-          
-          {/* 1. Título e Valor Centralizados */}
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.summaryLabel}>Saldo total</Text>
             <Text style={styles.summaryAmount}>{renderValue(balance)}</Text>
           </View>
 
-          {/* 2. Botões de Ação na Direita (Olho + Adicionar) */}
           <View style={styles.headerRightActions}>
-              <TouchableOpacity onPress={() => setIsVisible(!isVisible)} style={styles.btnEyeHeader}>
+              {/* BOTÃO DO OLHO SINCRONIZADO */}
+              <TouchableOpacity onPress={toggleVisibility} style={styles.btnEyeHeader}>
                  <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
               </TouchableOpacity>
               
@@ -252,10 +244,8 @@ export default function ExpensesScreen() {
                 <MaterialIcons name="add" size={30} color="#3870d8" />
               </TouchableOpacity>
           </View>
-
         </View>
         
-        {/* Resumo Entrada/Saída Centralizado */}
         <View style={styles.row}>
           <View style={styles.summaryMiniCard}>
             <MaterialIcons name="arrow-upward" size={16} color="#13ec6d" />
@@ -268,9 +258,7 @@ export default function ExpensesScreen() {
         </View>
       </View>
 
-      {/* ÁREA DE INPUT PRINCIPAL */}
       <View style={styles.mainInputContainer}>
-        
         <View style={styles.quickTypeSelector}>
            <TouchableOpacity 
              style={[styles.quickTypeBtn, type === 'income' ? styles.quickIncomeActive : styles.quickTypeInactive]} 
@@ -279,7 +267,6 @@ export default function ExpensesScreen() {
              <MaterialIcons name="arrow-upward" size={20} color={type === 'income' ? '#fff' : '#13ec6d'} />
              <Text style={[styles.quickTypeText, type === 'income' ? {color:'#fff'} : {color:'#13ec6d'}]}>Entrada</Text>
            </TouchableOpacity>
-
            <TouchableOpacity 
              style={[styles.quickTypeBtn, type === 'expense' ? styles.quickExpenseActive : styles.quickTypeInactive]} 
              onPress={() => setType('expense')}
@@ -288,43 +275,21 @@ export default function ExpensesScreen() {
              <Text style={[styles.quickTypeText, type === 'expense' ? {color:'#fff'} : {color:'#ef4444'}]}>Saída</Text>
            </TouchableOpacity>
         </View>
-
         <View style={styles.valueInputWrapper}>
           <Text style={styles.currencyPrefix}>R$</Text>
-          <TextInput 
-            style={styles.mainValueInput}
-            placeholder="0,00"
-            placeholderTextColor="#cbd5e1"
-            keyboardType="numeric"
-            value={value}
-            onChangeText={setValue}
-          />
+          <TextInput style={styles.mainValueInput} placeholder="0,00" placeholderTextColor="#cbd5e1" keyboardType="numeric" value={value} onChangeText={setValue} />
         </View>
-
         <View style={styles.descInputWrapper}>
-          <TextInput 
-            style={styles.descInput}
-            placeholder="Descrição (ex: Creche)"
-            value={description}
-            onChangeText={handleDescriptionChange}
-          />
-          
+          <TextInput style={styles.descInput} placeholder="Descrição (ex: Creche)" value={description} onChangeText={handleDescriptionChange} />
           {editingId ? (
              <View style={{flexDirection: 'row', gap: 10}}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditing}>
-                  <MaterialIcons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveTransaction}>
-                  <MaterialIcons name="check" size={24} color="#fff" />
-                </TouchableOpacity>
+                <TouchableOpacity style={styles.cancelBtn} onPress={cancelEditing}><MaterialIcons name="close" size={24} color="#fff" /></TouchableOpacity>
+                <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveTransaction}><MaterialIcons name="check" size={24} color="#fff" /></TouchableOpacity>
              </View>
           ) : (
-            <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveTransaction}>
-              <MaterialIcons name="check" size={24} color="#fff" />
-            </TouchableOpacity>
+            <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveTransaction}><MaterialIcons name="check" size={24} color="#fff" /></TouchableOpacity>
           )}
         </View>
-
         {showSuggestions && (
           <View style={styles.suggestionsBox}>
             {filteredSuggestions.map((item, index) => (
@@ -336,162 +301,58 @@ export default function ExpensesScreen() {
         )}
       </View>
 
-      {/* LISTA */}
       <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>
-          {editingId ? 'Editando item selecionado...' : 'Últimas atividades'}
-        </Text>
-        <FlatList
-          data={list}
-          renderItem={renderItem}
-          keyExtractor={item => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
+        <Text style={styles.listTitle}>{editingId ? 'Editando item selecionado...' : 'Últimas atividades'}</Text>
+        <FlatList data={list} renderItem={renderItem} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} />
       </View>
 
-      {/* MODAL CONFIG */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <View style={styles.modalBackdrop} />
-          </TouchableWithoutFeedback>
-
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop} /></TouchableWithoutFeedback>
           <View style={styles.sideMenu}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Configurações</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
+            <View style={styles.modalHeader}><Text style={styles.modalTitle}>Configurações</Text><TouchableOpacity onPress={() => setModalVisible(false)}><MaterialIcons name="close" size={24} color="#64748b" /></TouchableOpacity></View>
             <Text style={styles.inputLabel}>Adicionar Nova Opção</Text>
-            <Text style={styles.helperText}>Cadastre opções para aparecerem no autocompletar.</Text>
-            
             <View style={styles.addCategoryRow}>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="Nome da categoria..."
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-              />
-              <TouchableOpacity style={styles.btnAddCategory} onPress={handleAddCategory}>
-                <MaterialIcons name="add" size={24} color="#fff" />
-              </TouchableOpacity>
+              <TextInput style={styles.modalInput} placeholder="Nome da categoria..." value={newCategoryName} onChangeText={setNewCategoryName} />
+              <TouchableOpacity style={styles.btnAddCategory} onPress={handleAddCategory}><MaterialIcons name="add" size={24} color="#fff" /></TouchableOpacity>
             </View>
-
-            <View style={styles.dangerZone}>
-              <TouchableOpacity style={styles.btnDelete} onPress={handleClearAll}>
-                <MaterialIcons name="delete-forever" size={24} color="#ef4444" />
-                <Text style={styles.btnDeleteText}>Apagar todas as atividades</Text>
-              </TouchableOpacity>
-            </View>
-
+            <View style={styles.dangerZone}><TouchableOpacity style={styles.btnDelete} onPress={handleClearAll}><MaterialIcons name="delete-forever" size={24} color="#ef4444" /><Text style={styles.btnDeleteText}>Apagar tudo</Text></TouchableOpacity></View>
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  summaryContainer: {
-    padding: 20,
-    backgroundColor: '#3870d8',
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    paddingBottom: 40,
-    elevation: 5,
-    zIndex: 1
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'center', 
-    alignItems: 'flex-start',
-    width: '100%',
-    position: 'relative', 
-    marginBottom: 15
-  },
-  
-  // ESTILOS DOS BOTÕES DA DIREITA
-  headerRightActions: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12 // Espaço entre o olho e o +
-  },
-  btnEyeHeader: {
-    padding: 5, // Aumenta área de toque
-  },
-  btnAddHeader: {
-    backgroundColor: '#fff',
-    width: 45,
-    height: 45,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
+  container: { flex: 1, backgroundColor: '#ffffff', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  summaryContainer: { padding: 20, backgroundColor: '#3870d8', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 40, elevation: 5, zIndex: 1 },
+  headerContent: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', width: '100%', position: 'relative', marginBottom: 15 },
+  headerRightActions: { position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  btnEyeHeader: { padding: 5 },
+  btnAddHeader: { backgroundColor: '#fff', width: 45, height: 45, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   summaryLabel: { color: '#ffffffcc', fontSize: 14, textTransform: 'uppercase', letterSpacing: 1 },
   summaryAmount: { color: '#ffffff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
-  
-  row: { 
-    flexDirection: 'row', 
-    gap: 15, 
-    justifyContent: 'center' 
-  },
+  row: { flexDirection: 'row', gap: 15, justifyContent: 'center' },
   summaryMiniCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 5 },
   miniCardText: { color: '#fff', fontSize: 12, fontWeight: '500' },
-  
-  mainInputContainer: {
-    marginHorizontal: 20,
-    marginTop: -30,
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    elevation: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6,
-    zIndex: 10,
-    marginBottom: 10,
-  },
+  mainInputContainer: { marginHorizontal: 20, marginTop: -30, backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, zIndex: 10, marginBottom: 10 },
   quickTypeSelector: { flexDirection: 'row', marginBottom: 15, gap: 10 },
   quickTypeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, gap: 5 },
   quickTypeInactive: { borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
   quickIncomeActive: { backgroundColor: '#13ec6d', borderColor: '#13ec6d' },
   quickExpenseActive: { backgroundColor: '#ef4444', borderColor: '#ef4444' },
   quickTypeText: { fontSize: 14, fontWeight: 'bold' },
-  
   valueInputWrapper: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 5, marginBottom: 15 },
   currencyPrefix: { fontSize: 24, color: '#94a3b8', fontWeight: '600', marginRight: 10 },
   mainValueInput: { flex: 1, fontSize: 32, fontWeight: 'bold', color: '#334155' },
-
   descInputWrapper: { flexDirection: 'row', gap: 10 },
   descInput: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 15, height: 50, fontSize: 16 },
   confirmBtn: { width: 50, height: 50, backgroundColor: '#3870d8', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   cancelBtn: { width: 50, height: 50, backgroundColor: '#ef4444', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-
-  suggestionsBox: {
-    position: 'absolute',
-    top: 185,
-    left: 20, right: 20,
-    backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', elevation: 5, maxHeight: 150
-  },
+  suggestionsBox: { position: 'absolute', top: 185, left: 20, right: 20, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', elevation: 5, maxHeight: 150 },
   suggestionItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   suggestionText: { color: '#333' },
-
   listContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 10, zIndex: 1 },
   listTitle: { color: '#a1a1a1', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3870d8', padding: 15, borderRadius: 15, marginBottom: 12 },
@@ -501,20 +362,16 @@ const styles = StyleSheet.create({
   itemTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
   itemCategory: { color: '#a5a5a7', fontSize: 12 },
   itemValue: { fontSize: 14, fontWeight: 'bold' },
-
   modalOverlay: { flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalBackdrop: { flex: 1 },
   sideMenu: { width: '85%', backgroundColor: '#fff', padding: 25, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#3870d8' },
-  
   inputLabel: { color: '#3870d8', marginBottom: 5, fontWeight: 'bold' },
   helperText: { color: '#64748b', fontSize: 12, marginBottom: 10 },
-  
   addCategoryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   modalInput: { flex: 1, backgroundColor: '#f1f5f9', padding: 15, borderRadius: 10, fontSize: 16, color: '#333' },
   btnAddCategory: { width: 50, backgroundColor: '#13ec6d', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-
   dangerZone: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 },
   btnDelete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10 },
   btnDeleteText: { color: '#ef4444', fontWeight: '600', fontSize: 14 }

@@ -3,16 +3,16 @@ import {
   View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, 
   Modal, TextInput, TouchableWithoutFeedback, Alert, Platform, StatusBar 
 } from 'react-native';
-import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5, Ionicons } from '@expo/vector-icons'; // Adicionado Ionicons
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Tipo de Investimento
 interface Investment {
   id: string;
-  name: string;      // Ex: Bitcoin, Tesouro Selic, CDB
-  amount: number;    // Valor investido
-  currentValue: number; // Valor atual (para calcular lucro)
+  name: string;      
+  amount: number;    
+  currentValue: number; 
   type: 'fixed' | 'variable' | 'crypto';
 }
 
@@ -20,6 +20,9 @@ export default function InvestmentsScreen() {
   const [list, setList] = useState<Investment[]>([]);
   const [totalInvested, setTotalInvested] = useState(0);
   const [totalCurrent, setTotalCurrent] = useState(0);
+  
+  // --- ESTADO DE PRIVACIDADE ---
+  const [isVisible, setIsVisible] = useState(true);
 
   // Modal e Inputs
   const [modalVisible, setModalVisible] = useState(false);
@@ -28,11 +31,23 @@ export default function InvestmentsScreen() {
   const [currentValue, setCurrentValue] = useState('');
   const [type, setType] = useState<'fixed' | 'variable' | 'crypto'>('fixed');
 
+  // --- SINCRONIZAÇÃO DO OLHO ---
   useFocusEffect(
     useCallback(() => {
-      loadData();
+      const loadSync = async () => {
+        const saved = await AsyncStorage.getItem('@myfinance:visibility');
+        if (saved !== null) setIsVisible(JSON.parse(saved));
+        loadData();
+      };
+      loadSync();
     }, [])
   );
+
+  const toggleVisibility = async () => {
+    const newValue = !isVisible;
+    setIsVisible(newValue);
+    await AsyncStorage.setItem('@myfinance:visibility', JSON.stringify(newValue));
+  };
 
   useEffect(() => {
     const invested = list.reduce((acc, item) => acc + item.amount, 0);
@@ -60,10 +75,8 @@ export default function InvestmentsScreen() {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
-
     const numAmount = parseFloat(amount.replace(',', '.'));
     const numCurrent = parseFloat(currentValue.replace(',', '.'));
-
     const newInv: Investment = {
       id: String(new Date().getTime()),
       name,
@@ -71,10 +84,8 @@ export default function InvestmentsScreen() {
       currentValue: numCurrent,
       type
     };
-
     const newList = [newInv, ...list];
     saveData(newList);
-    
     setName(''); setAmount(''); setCurrentValue(''); setModalVisible(false);
   };
 
@@ -90,7 +101,11 @@ export default function InvestmentsScreen() {
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Calcula rendimento
+  // --- HELPER DE PRIVACIDADE ---
+  const renderValue = (val: number) => {
+    return isVisible ? formatCurrency(val) : '••••••';
+  };
+
   const getProfit = (item: Investment) => {
     const diff = item.currentValue - item.amount;
     const percent = item.amount > 0 ? (diff / item.amount) * 100 : 0;
@@ -113,14 +128,15 @@ export default function InvestmentsScreen() {
           </View>
           <View>
             <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardSubtitle}>Investido: {formatCurrency(item.amount)}</Text>
+            <Text style={styles.cardSubtitle}>Investido: {renderValue(item.amount)}</Text>
           </View>
         </View>
 
         <View style={styles.cardRight}>
-          <Text style={styles.cardValue}>{formatCurrency(item.currentValue)}</Text>
+          <Text style={styles.cardValue}>{renderValue(item.currentValue)}</Text>
+          {/* Oculta porcentagem também por privacidade se o olho estiver fechado */}
           <Text style={[styles.profitText, { color: isProfit ? '#13ec6d' : '#ef4444' }]}>
-            {isProfit ? '+' : ''}{percent.toFixed(1)}% ({isProfit ? '+' : ''}{formatCurrency(diff)})
+            {isVisible ? `${isProfit ? '+' : ''}${percent.toFixed(1)}% (${isProfit ? '+' : ''}${formatCurrency(diff)})` : '••%'}
           </Text>
         </View>
       </TouchableOpacity>
@@ -134,20 +150,27 @@ export default function InvestmentsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Meus Investimentos</Text>
         <Text style={styles.labelTotal}>Patrimônio Total</Text>
-        <Text style={styles.valueTotal}>{formatCurrency(totalCurrent)}</Text>
+        <Text style={styles.valueTotal}>{renderValue(totalCurrent)}</Text>
         
         <View style={styles.summaryRow}>
           <View style={styles.badge}>
              <Text style={styles.badgeLabel}>Rendimento</Text>
              <Text style={[styles.badgeValue, { color: totalYield >= 0 ? '#13ec6d' : '#ef4444' }]}>
-               {totalYield >= 0 ? '+' : ''}{formatCurrency(totalYield)}
+               {totalYield >= 0 ? '+' : ''}{renderValue(totalYield)}
              </Text>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.btnAdd} onPress={() => setModalVisible(true)}>
-          <MaterialIcons name="add" size={28} color="#3870d8" />
-        </TouchableOpacity>
+        {/* CONTAINER DE AÇÕES NA DIREITA */}
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity onPress={toggleVisibility} style={styles.eyeBtn}>
+            <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffaa" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.btnAdd} onPress={() => setModalVisible(true)}>
+            <MaterialIcons name="add" size={28} color="#3870d8" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.content}>
@@ -160,31 +183,23 @@ export default function InvestmentsScreen() {
         />
       </View>
 
-      {/* MODAL */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop}/></TouchableWithoutFeedback>
             <View style={styles.modalContent}>
                 <Text style={styles.modalTitle}>Novo Aporte</Text>
-                
                 <Text style={styles.label}>Ativo (Ex: BTC, CDB...)</Text>
                 <TextInput style={styles.input} value={name} onChangeText={setName} />
-
                 <Text style={styles.label}>Valor Investido (R$)</Text>
                 <TextInput style={styles.input} value={amount} onChangeText={setAmount} keyboardType="numeric" />
-
-                <Text style={styles.label}>Valor Atual (R$) - Para calcular lucro</Text>
+                <Text style={styles.label}>Valor Atual (R$)</Text>
                 <TextInput style={styles.input} value={currentValue} onChangeText={setCurrentValue} keyboardType="numeric" />
-
                 <View style={styles.typeRow}>
                     <TouchableOpacity onPress={() => setType('fixed')} style={[styles.typeBtn, type === 'fixed' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'fixed' && styles.typeTextActive]}>Renda Fixa</Text></TouchableOpacity>
                     <TouchableOpacity onPress={() => setType('variable')} style={[styles.typeBtn, type === 'variable' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'variable' && styles.typeTextActive]}>Variável</Text></TouchableOpacity>
                     <TouchableOpacity onPress={() => setType('crypto')} style={[styles.typeBtn, type === 'crypto' && styles.typeBtnActive]}><Text style={[styles.typeText, type === 'crypto' && styles.typeTextActive]}>Cripto</Text></TouchableOpacity>
                 </View>
-
-                <TouchableOpacity style={styles.btnSave} onPress={handleSave}>
-                    <Text style={styles.btnSaveText}>SALVAR</Text>
-                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={styles.btnSaveText}>SALVAR</Text></TouchableOpacity>
             </View>
         </View>
       </Modal>
@@ -202,10 +217,30 @@ const styles = StyleSheet.create({
   badge: { backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20, alignItems: 'center' },
   badgeLabel: { color: '#e2e8f0', fontSize: 10 },
   badgeValue: { fontSize: 14, fontWeight: 'bold' },
-  btnAdd: { position: 'absolute', top: 20, right: 20, backgroundColor: '#fff', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+  
+  // AJUSTE DOS BOTÕES NO HEADER
+  headerRightActions: {
+    position: 'absolute',
+    top: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15, // Espaço entre o olho e o +
+  },
+  eyeBtn: {
+    padding: 5,
+  },
+  btnAdd: { 
+    backgroundColor: '#fff', 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+
   content: { flex: 1, padding: 20 },
   emptyText: { textAlign: 'center', color: '#94a3b8', marginTop: 50 },
-  
   card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2, borderWidth: 1, borderColor: '#f1f5f9' },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   iconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
@@ -214,8 +249,6 @@ const styles = StyleSheet.create({
   cardRight: { alignItems: 'flex-end' },
   cardValue: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
   profitText: { fontSize: 11, fontWeight: 'bold' },
-
-  // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 25 },
