@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, SafeAreaView, 
   TextInput, TouchableOpacity, Modal, TouchableWithoutFeedback, Alert, Platform, StatusBar 
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -29,6 +29,9 @@ export default function FixedBillsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // --- ESTADO DE PRIVACIDADE (NOVO) ---
+  const [isVisible, setIsVisible] = useState(true);
+
   const [title, setTitle] = useState('');
   const [value, setValue] = useState('');
   const [dueDay, setDueDay] = useState('');
@@ -46,10 +49,6 @@ export default function FixedBillsScreen() {
     const total = bills.reduce((acc, bill) => acc + bill.value, 0);
     setTotalFixed(total);
   }, [bills]);
-
-  useEffect(() => {
-    checkOverdueBills();
-  }, [bills, paymentsMap, selectedDate]);
 
   // --- PERSISTÊNCIA ---
   async function loadData() {
@@ -93,8 +92,6 @@ export default function FixedBillsScreen() {
     return 'pending';
   };
 
-  const checkOverdueBills = () => {};
-
   const togglePayment = (bill: FixedBill) => {
     const month = selectedDate.getMonth();
     const year = selectedDate.getFullYear();
@@ -104,35 +101,12 @@ export default function FixedBillsScreen() {
     savePaymentStatus(newMap);
   };
 
-  // --- EDIÇÃO E CRIAÇÃO ---
-  const openNewBill = () => {
-    setEditingId(null);
-    setTitle('');
-    setValue('');
-    setDueDay('');
-    setModalVisible(true);
-  };
-
-  const openEditBill = (bill: FixedBill) => {
-    setEditingId(bill.id);
-    setTitle(bill.title);
-    setValue(String(bill.value));
-    setDueDay(String(bill.dueDay));
-    setModalVisible(true);
-  };
-
   const handleSave = () => {
     if (!title || !value || !dueDay) {
       Alert.alert('Erro', 'Preencha todos os campos');
       return;
     }
-
     const day = parseInt(dueDay);
-    if (day < 1 || day > 31) {
-      Alert.alert('Erro', 'Dia inválido');
-      return;
-    }
-
     const numericValue = parseFloat(value.replace(',', '.'));
     let newBillsList = [...bills];
 
@@ -179,27 +153,31 @@ export default function FixedBillsScreen() {
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // --- RENDER ---
+  // --- HELPER DE PRIVACIDADE ---
+  const renderValue = (val: number) => {
+    return isVisible ? formatCurrency(val) : '••••••';
+  };
+
+  // --- RENDER ITEM ---
   const renderItem = ({ item }: { item: FixedBill }) => {
     const status = getBillStatus(item);
-    
     let statusColor = '#f59e0b'; 
     let statusText = 'Pendente';
     let cardBorderColor = 'transparent';
 
-    if (status === 'paid') {
-      statusColor = '#13ec6d'; 
-      statusText = 'Pago';
-    } else if (status === 'overdue') {
-      statusColor = '#ef4444'; 
-      statusText = 'Atrasado';
-      cardBorderColor = '#ef4444';
-    }
+    if (status === 'paid') { statusColor = '#13ec6d'; statusText = 'Pago'; }
+    else if (status === 'overdue') { statusColor = '#ef4444'; statusText = 'Atrasado'; cardBorderColor = '#ef4444'; }
 
     return (
       <TouchableOpacity 
         style={[styles.card, { borderColor: cardBorderColor, borderWidth: status === 'overdue' ? 1 : 0 }]} 
-        onPress={() => openEditBill(item)}
+        onPress={() => {
+          setEditingId(item.id);
+          setTitle(item.title);
+          setValue(String(item.value));
+          setDueDay(String(item.dueDay));
+          setModalVisible(true);
+        }}
         activeOpacity={0.7}
       >
         <View style={styles.cardLeft}>
@@ -220,12 +198,10 @@ export default function FixedBillsScreen() {
         </View>
 
         <View style={styles.cardRight}>
-          <Text style={styles.cardValue}>{formatCurrency(item.value)}</Text>
-          <TouchableOpacity onPress={() => togglePayment(item)}>
-             <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-                <Text style={styles.statusText}>{statusText}</Text>
-             </View>
-          </TouchableOpacity>
+          <Text style={styles.cardValue}>{renderValue(item.value)}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+            <Text style={styles.statusText}>{statusText}</Text>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -234,23 +210,27 @@ export default function FixedBillsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* HEADER ATUALIZADO */}
+      {/* HEADER COM OLHO */}
       <View style={styles.header}>
-        {/* Título e Botão + */}
         <View style={styles.headerTop}>
           <Text style={styles.headerTitle}>Contas Fixas</Text>
-          <TouchableOpacity style={styles.btnAdd} onPress={openNewBill}>
-            <MaterialIcons name="add" size={28} color="#3870d8" />
-          </TouchableOpacity>
+          
+          <View style={styles.headerRightActions}>
+            <TouchableOpacity onPress={() => setIsVisible(!isVisible)} style={styles.btnEyeHeader}>
+               <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnAdd} onPress={() => { setEditingId(null); setTitle(''); setValue(''); setDueDay(''); setModalVisible(true); }}>
+              <MaterialIcons name="add" size={28} color="#3870d8" />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* VALOR TOTAL (AGORA AQUI NO MEIO) */}
         <View style={styles.totalContainer}>
           <Text style={styles.totalLabel}>Total Mensal Previsto</Text>
-          <Text style={styles.totalValue}>{formatCurrency(totalFixed)}</Text>
+          <Text style={styles.totalValue}>{renderValue(totalFixed)}</Text>
         </View>
         
-        {/* Filtro de Data */}
         <View style={styles.dateFilter}>
           <TouchableOpacity onPress={() => changeMonth('prev')} style={styles.arrowBtn}>
             <MaterialIcons name="chevron-left" size={24} color="#fff" />
@@ -262,7 +242,6 @@ export default function FixedBillsScreen() {
         </View>
       </View>
 
-      {/* LISTA */}
       <View style={styles.content}>
         <FlatList 
           data={bills}
@@ -270,78 +249,39 @@ export default function FixedBillsScreen() {
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 20 }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>Nenhuma conta fixa cadastrada.</Text>
-            </View>
+            <View style={styles.emptyState}><Text style={styles.emptyText}>Nenhuma conta cadastrada.</Text></View>
           }
         />
       </View>
 
-      {/* MODAL ADICIONAR / EDITAR */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
+      {/* MODAL */}
+      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-            <View style={styles.modalBackdrop} />
-          </TouchableWithoutFeedback>
-          
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop} /></TouchableWithoutFeedback>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {editingId ? 'Editar Conta' : 'Nova Conta Fixa'}
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>{editingId ? 'Editar Conta' : 'Nova Conta'}</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><MaterialIcons name="close" size={24} color="#64748b" /></TouchableOpacity>
             </View>
-
-            <Text style={styles.label}>Nome (ex: Aluguel)</Text>
-            <TextInput 
-              style={styles.input} 
-              value={title} 
-              onChangeText={setTitle}
-              placeholder="Digite o nome..."
-            />
-
+            <Text style={styles.label}>Nome</Text>
+            <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Ex: Aluguel" />
             <View style={{ flexDirection: 'row', gap: 15 }}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Valor</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={value} 
-                  onChangeText={setValue}
-                  keyboardType="numeric"
-                  placeholder="0,00"
-                />
+                <TextInput style={styles.input} value={value} onChangeText={setValue} keyboardType="numeric" placeholder="0,00" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Dia Vencimento</Text>
-                <TextInput 
-                  style={styles.input} 
-                  value={dueDay} 
-                  onChangeText={setDueDay}
-                  keyboardType="numeric"
-                  placeholder="Dia (1-31)"
-                  maxLength={2}
-                />
+                <Text style={styles.label}>Dia</Text>
+                <TextInput style={styles.input} value={dueDay} onChangeText={setDueDay} keyboardType="numeric" placeholder="1-31" maxLength={2} />
               </View>
             </View>
-
-            <TouchableOpacity style={styles.btnSave} onPress={handleSave}>
-              <Text style={styles.btnSaveText}>SALVAR CONTA</Text>
-            </TouchableOpacity>
-
+            <TouchableOpacity style={styles.btnSave} onPress={handleSave}><Text style={styles.btnSaveText}>SALVAR</Text></TouchableOpacity>
             {editingId && (
               <TouchableOpacity style={styles.btnDelete} onPress={handleDelete}>
                 <MaterialIcons name="delete-outline" size={20} color="#ef4444" />
-                <Text style={styles.btnDeleteText}>Excluir esta conta</Text>
+                <Text style={styles.btnDeleteText}>Excluir conta</Text>
               </TouchableOpacity>
             )}
-
           </View>
         </View>
       </Modal>
@@ -351,109 +291,30 @@ export default function FixedBillsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  header: {
-    backgroundColor: '#3870d8',
-    padding: 20,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    elevation: 5,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    marginBottom: 15 // Espaço antes do Total
-  },
-  headerTitle: {
-    color: '#ffffffaa',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  btnAdd: {
-    position: 'absolute',
-    right: 0,
-    backgroundColor: '#fff',
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1, backgroundColor: '#fff', paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 },
+  header: { backgroundColor: '#3870d8', padding: 20, paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5 },
+  headerTop: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', position: 'relative', marginBottom: 15 },
+  headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+  
+  headerRightActions: { position: 'absolute', right: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  btnEyeHeader: { padding: 5 },
+  btnAdd: { backgroundColor: '#fff', width: 35, height: 35, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
 
-  // --- NOVO TOTAL NO HEADER ---
-  totalContainer: {
-    alignItems: 'center',
-    marginBottom: 15, // Espaço antes do Filtro
-  },
-  totalLabel: {
-    color: '#e2e8f0',
-    fontSize: 12,
-    marginBottom: 2
-  },
-  totalValue: {
-    color: '#fff',
-    fontSize: 36,
-    fontWeight: 'bold'
-  },
+  totalContainer: { alignItems: 'center', marginBottom: 15 },
+  totalLabel: { color: '#e2e8f0', fontSize: 12, marginBottom: 2 },
+  totalValue: { color: '#fff', fontSize: 36, fontWeight: 'bold' },
 
-  // --- FILTRO DE DATA ---
-  dateFilter: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Fundo sutil para o filtro
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 20,
-    alignSelf: 'center'
-  },
-  dateText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    minWidth: 120,
-    textAlign: 'center'
-  },
-  arrowBtn: {
-    padding: 2
-  },
+  dateFilter: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 15, backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingVertical: 8, paddingHorizontal: 15, borderRadius: 20, alignSelf: 'center' },
+  dateText: { color: '#fff', fontSize: 16, fontWeight: 'bold', minWidth: 120, textAlign: 'center' },
+  arrowBtn: { padding: 2 },
 
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  content: { flex: 1, padding: 20 },
   emptyState: { alignItems: 'center', marginTop: 50 },
   emptyText: { color: '#94a3b8', fontSize: 16 },
   
-  // CARD
-  card: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 15,
-    marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
-  },
+  card: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 12, elevation: 2 },
   cardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: {
-    width: 45,
-    height: 45,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
+  iconBox: { width: 45, height: 45, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#334155' },
   cardDate: { fontSize: 12, color: '#64748b' },
   cardRight: { alignItems: 'flex-end', gap: 5 },
@@ -461,7 +322,6 @@ const styles = StyleSheet.create({
   statusBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
   statusText: { color: '#fff', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
   
-  // MODAL
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 25, elevation: 10 },

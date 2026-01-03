@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { PieChart } from 'react-native-chart-kit';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker'; 
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -47,6 +47,9 @@ export default function SummaryScreen() {
 
   // --- ESTADOS DE UI ---
   const [modalVisible, setModalVisible] = useState<boolean>(false);
+  
+  // --- ESTADO DE PRIVACIDADE (NOVO) ---
+  const [isVisible, setIsVisible] = useState(true);
 
   // --- ESTADOS DE FILTRO DE DATA ---
   const [startDate, setStartDate] = useState<Date>(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); 
@@ -83,7 +86,6 @@ export default function SummaryScreen() {
   };
 
   function applyDateFilter() {
-    // Se não tiver transações, zera tudo
     if (allTransactions.length === 0) {
         setBalance(0);
         setTotalExpense(0);
@@ -168,8 +170,8 @@ export default function SummaryScreen() {
           style: "destructive", 
           onPress: async () => {
             await AsyncStorage.removeItem('@myfinance:transactions');
-            setAllTransactions([]); // Limpa estado local
-            setModalVisible(false); // Fecha modal
+            setAllTransactions([]); 
+            setModalVisible(false); 
             Alert.alert("Sucesso", "Dados limpos.");
           }
         }
@@ -214,6 +216,11 @@ export default function SummaryScreen() {
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // --- HELPER DE PRIVACIDADE ---
+  const renderValue = (val: number) => {
+    return isVisible ? formatCurrency(val) : '••••••';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       
@@ -221,14 +228,21 @@ export default function SummaryScreen() {
       <View style={styles.header}>
         <View style={styles.headerTopRow}>
             <Text style={styles.headerTitle}>Resumo Financeiro</Text>
-            {/* BOTÃO + */}
-            <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
-                <MaterialIcons name="add" size={30} color="#3870d8" />
-            </TouchableOpacity>
+            
+            {/* AÇÕES (OLHO + ADD) */}
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity onPress={() => setIsVisible(!isVisible)} style={styles.btnEyeHeader}>
+                 <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
+                  <MaterialIcons name="add" size={30} color="#3870d8" />
+              </TouchableOpacity>
+            </View>
         </View>
 
         <Text style={styles.labelBalance}>Saldo no Período</Text>
-        <Text style={styles.valueBalance}>{formatCurrency(balance)}</Text>
+        <Text style={styles.valueBalance}>{renderValue(balance)}</Text>
       </View>
 
       {/* --- BARRA DE FILTROS --- */}
@@ -287,7 +301,7 @@ export default function SummaryScreen() {
             <View style={styles.donutHole}>
               <Text style={styles.donutLabel}>TOTAL</Text>
               <Text style={styles.donutValue}>
-                {totalExpense < 10000 ? formatCurrency(totalExpense) : `R$ ${(totalExpense/1000).toFixed(1)}k`}
+                {isVisible ? (totalExpense < 10000 ? formatCurrency(totalExpense) : `R$ ${(totalExpense/1000).toFixed(1)}k`) : '••••'}
               </Text>
             </View>
           </View>
@@ -322,9 +336,9 @@ export default function SummaryScreen() {
                 </View>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.itemValue}>- {formatCurrency(item.value)}</Text>
+                <Text style={styles.itemValue}>- {renderValue(item.value)}</Text>
                 <Text style={styles.itemPercent}>
-                    {totalExpense > 0 ? ((item.value / totalExpense) * 100).toFixed(1) : 0}%
+                    {isVisible ? (totalExpense > 0 ? ((item.value / totalExpense) * 100).toFixed(1) : 0) + '%' : '••%'}
                 </Text>
               </View>
             </View>
@@ -383,11 +397,21 @@ const styles = StyleSheet.create({
       flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
       width: '100%', marginBottom: 10
   },
-  headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+  
+  // Botões do Header
+  headerRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12
+  },
+  btnEyeHeader: { padding: 5 },
   btnAddHeader: {
     backgroundColor: '#fff', width: 40, height: 40, borderRadius: 20,
     justifyContent: 'center', alignItems: 'center'
   },
+
+  headerTitle: { color: '#ffffffaa', fontSize: 14, fontWeight: 'bold', textTransform: 'uppercase' },
+  
   labelBalance: { color: '#e2e8f0', fontSize: 12 },
   valueBalance: { color: '#fff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
   

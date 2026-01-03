@@ -26,12 +26,13 @@ export default function App() {
           // Estilo da Barra (Container)
           tabBarStyle: {
             position: 'absolute',
-            bottom: 20, // Flutua do fundo
+            bottom: 0, // Flutua do fundo
             left: 20,
             right: 20,
             elevation: 5, // Sombra Android
             backgroundColor: '#ffffff',
-            borderRadius: 15, // Bordas arredondadas
+            borderTopStartRadius: 15, // Bordas arredondadas
+            borderTopEndRadius: 15, // Bordas arredondadas
             height: 70, // Altura maior para acomodar o ícone flutuante
             shadowColor: '#000', // Sombra iOS
             shadowOffset: { width: 0, height: 5 },

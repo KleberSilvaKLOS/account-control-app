@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, FlatList, SafeAreaView, 
   TextInput, TouchableOpacity, Keyboard, Platform, StatusBar, Alert, Modal, TouchableWithoutFeedback 
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Definindo o formato dos dados
@@ -33,6 +33,9 @@ export default function ExpensesScreen() {
 
   const [modalVisible, setModalVisible] = useState<boolean>(false); 
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Estado de Privacidade
+  const [isVisible, setIsVisible] = useState(true);
 
   const [description, setDescription] = useState<string>('');
   const [value, setValue] = useState<string>('');
@@ -200,6 +203,11 @@ export default function ExpensesScreen() {
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Helper de privacidade
+  const renderValue = (val: number) => {
+    return isVisible ? formatCurrency(val) : '••••••';
+  };
+
   const renderItem = ({ item }: { item: Transaction }) => (
     <TouchableOpacity 
       style={[styles.itemCard, editingId === item.id && styles.itemCardEditing]} 
@@ -216,7 +224,7 @@ export default function ExpensesScreen() {
         <Text style={styles.itemCategory}>{item.date} às {item.time}</Text>
       </View>
       <Text style={[styles.itemValue, { color: item.type === 'income' ? '#13ec6d' : '#ef4444' }]}>
-        {item.type === 'income' ? '+ ' : '- '}{formatCurrency(item.value)}
+        {item.type === 'income' ? '+ ' : '- '}{renderValue(item.value)}
       </Text>
     </TouchableOpacity>
   );
@@ -228,27 +236,34 @@ export default function ExpensesScreen() {
       <View style={styles.summaryContainer}>
         <View style={styles.headerContent}>
           
-          {/* Título e Valor Centralizados */}
+          {/* 1. Título e Valor Centralizados */}
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.summaryLabel}>Saldo total</Text>
-            <Text style={styles.summaryAmount}>{formatCurrency(balance)}</Text>
+            <Text style={styles.summaryAmount}>{renderValue(balance)}</Text>
           </View>
 
-          {/* Botão + Absoluto na Direita */}
-          <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
-            <MaterialIcons name="add" size={30} color="#3870d8" />
-          </TouchableOpacity>
+          {/* 2. Botões de Ação na Direita (Olho + Adicionar) */}
+          <View style={styles.headerRightActions}>
+              <TouchableOpacity onPress={() => setIsVisible(!isVisible)} style={styles.btnEyeHeader}>
+                 <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.btnAddHeader} onPress={() => setModalVisible(true)}>
+                <MaterialIcons name="add" size={30} color="#3870d8" />
+              </TouchableOpacity>
+          </View>
+
         </View>
         
         {/* Resumo Entrada/Saída Centralizado */}
         <View style={styles.row}>
           <View style={styles.summaryMiniCard}>
             <MaterialIcons name="arrow-upward" size={16} color="#13ec6d" />
-            <Text style={styles.miniCardText}>{formatCurrency(totalIncome)}</Text>
+            <Text style={styles.miniCardText}>{renderValue(totalIncome)}</Text>
           </View>
           <View style={styles.summaryMiniCard}>
             <MaterialIcons name="arrow-downward" size={16} color="#ef4444" />
-            <Text style={styles.miniCardText}>{formatCurrency(totalExpense)}</Text>
+            <Text style={styles.miniCardText}>{renderValue(totalExpense)}</Text>
           </View>
         </View>
       </View>
@@ -400,19 +415,28 @@ const styles = StyleSheet.create({
     elevation: 5,
     zIndex: 1
   },
-  // ESTILOS DO HEADER CENTRALIZADO
   headerContent: {
     flexDirection: 'row',
-    justifyContent: 'center', // Centraliza o bloco de texto
+    justifyContent: 'center', 
     alignItems: 'flex-start',
     width: '100%',
-    position: 'relative', // Para o botão absoluto funcionar
+    position: 'relative', 
     marginBottom: 15
   },
-  btnAddHeader: {
+  
+  // ESTILOS DOS BOTÕES DA DIREITA
+  headerRightActions: {
     position: 'absolute',
     right: 0,
     top: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12 // Espaço entre o olho e o +
+  },
+  btnEyeHeader: {
+    padding: 5, // Aumenta área de toque
+  },
+  btnAddHeader: {
     backgroundColor: '#fff',
     width: 45,
     height: 45,
@@ -420,10 +444,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
   summaryLabel: { color: '#ffffffcc', fontSize: 14, textTransform: 'uppercase', letterSpacing: 1 },
   summaryAmount: { color: '#ffffff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
   
-  // Linha de Entrada/Saída Centralizada
   row: { 
     flexDirection: 'row', 
     gap: 15, 
@@ -432,7 +456,6 @@ const styles = StyleSheet.create({
   summaryMiniCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 5 },
   miniCardText: { color: '#fff', fontSize: 12, fontWeight: '500' },
   
-  // INPUT PRINCIPAL
   mainInputContainer: {
     marginHorizontal: 20,
     marginTop: -30,

@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, SafeAreaView, ScrollView, TouchableOpacity, 
   Dimensions, StatusBar, Platform 
 } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { PieChart } from 'react-native-chart-kit';
@@ -12,12 +12,12 @@ import { PieChart } from 'react-native-chart-kit';
 const screenWidth = Dimensions.get('window').width;
 const CHART_COLORS = ['#3870d8', '#13ec6d', '#ef4444', '#f59e0b', '#8b5cf6'];
 
-// --- INTERFACES SIMPLIFICADAS ---
+// --- INTERFACES ---
 interface Transaction {
   id: string;
   value: number;
   type: 'income' | 'expense';
-  date: string; // formato dd/mm/aaaa
+  date: string;
   description: string;
 }
 
@@ -31,14 +31,20 @@ interface FixedBill {
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
 
-  // --- ESTADOS ---
+  // --- ESTADOS DE DADOS ---
   const [balance, setBalance] = useState(0);
   const [monthExpense, setMonthExpense] = useState(0);
   const [chartData, setChartData] = useState<any[]>([]);
   
   // Estados de Contas Fixas
   const [fixedTotal, setFixedTotal] = useState(0);
-  const [nextBill, setNextBill] = useState<FixedBill | null>(null);
+  
+  // Lista de próximas contas (Array, pois pode haver mais de uma no mesmo dia)
+  const [nextBills, setNextBills] = useState<FixedBill[]>([]); 
+  const [nextBillDate, setNextBillDate] = useState<number | null>(null);
+
+  // --- ESTADO DE PRIVACIDADE (OLHO) ---
+  const [isVisible, setIsVisible] = useState(true);
 
   // Carrega dados toda vez que a tela ganha foco
   useFocusEffect(
@@ -49,17 +55,19 @@ export default function HomeScreen() {
 
   async function loadDashboardData() {
     try {
-      // 1. CARREGAR TRANSAÇÕES (Para Saldo e Gráfico)
+      // 1. CARREGAR TRANSAÇÕES
       const transJson = await AsyncStorage.getItem('@myfinance:transactions');
       const transactions: Transaction[] = transJson ? JSON.parse(transJson) : [];
-      
       calculateBalanceAndChart(transactions);
 
-      // 2. CARREGAR CONTAS FIXAS (Para o Widget inferior)
+      // 2. CARREGAR CONTAS E PAGAMENTOS
       const billsJson = await AsyncStorage.getItem('@myfinance:fixed_bills');
-      const bills: FixedBill[] = billsJson ? JSON.parse(billsJson) : [];
+      const paymentsJson = await AsyncStorage.getItem('@myfinance:bill_payments');
       
-      calculateFixedBills(bills);
+      const bills: FixedBill[] = billsJson ? JSON.parse(billsJson) : [];
+      const paymentsMap: {[key: string]: boolean} = paymentsJson ? JSON.parse(paymentsJson) : {};
+      
+      calculateFixedBills(bills, paymentsMap);
 
     } catch (e) {
       console.log('Erro ao carregar home', e);
@@ -78,17 +86,12 @@ export default function HomeScreen() {
 
     list.forEach(item => {
       const val = Number(item.value);
-      
-      // Cálculo do Saldo Total (Geral)
       if (item.type === 'income') totalBal += val;
       else totalBal -= val;
 
-      // Filtrar gastos DESTE MÊS para o gráfico
       const [day, month, year] = item.date.split('/').map(Number);
       if (item.type === 'expense' && (month - 1) === currentMonth && year === currentYear) {
         currentMonthExpense += val;
-        
-        // Agrupar categorias para o gráfico
         if (expensesMap[item.description]) expensesMap[item.description] += val;
         else expensesMap[item.description] = val;
       }
@@ -97,7 +100,6 @@ export default function HomeScreen() {
     setBalance(totalBal);
     setMonthExpense(currentMonthExpense);
 
-    // Preparar dados do gráfico (Top 3 + Outros)
     const sorted = Object.keys(expensesMap)
       .map(key => ({ name: key, value: expensesMap[key] }))
       .sort((a, b) => b.value - a.value);
@@ -122,43 +124,70 @@ export default function HomeScreen() {
     setChartData(data);
   }
 
-  // --- LÓGICA DE CONTAS FIXAS ---
-  function calculateFixedBills(bills: FixedBill[]) {
-    // Total Previsto
+  // --- LÓGICA DE CONTAS FIXAS (Filtrando Pagos e Agrupando Dias) ---
+  function calculateFixedBills(bills: FixedBill[], paymentsMap: {[key: string]: boolean}) {
+    // 1. Total Previsto (Soma tudo, independente se pagou)
     const total = bills.reduce((acc, b) => acc + b.value, 0);
     setFixedTotal(total);
 
-    // Encontrar Vencimento Próximo
-    const todayDay = new Date().getDate();
-    // Ordena por dia. Filtra apenas os que ainda não venceram este mês (dia >= hoje)
-    // Se não tiver nenhum este mês, pega o primeiro do mês que vem (menor dia da lista)
-    const upcoming = bills.filter(b => b.dueDay >= todayDay).sort((a, b) => a.dueDay - b.dueDay);
-    
+    // 2. Filtrar Apenas PENDENTES do mês atual
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const todayDay = now.getDate();
+
+    const unpaidBills = bills.filter(bill => {
+      const paymentKey = `${bill.id}_${currentMonth}_${currentYear}`;
+      return !paymentsMap[paymentKey]; // Retorna true se NÃO tiver pago
+    });
+
+    // 3. Ordenar e Pegar a DATA mais próxima (Hoje ou Futuro)
+    const upcoming = unpaidBills
+      .filter(b => b.dueDay >= todayDay)
+      .sort((a, b) => a.dueDay - b.dueDay);
+
     if (upcoming.length > 0) {
-      setNextBill(upcoming[0]);
-    } else if (bills.length > 0) {
-      // Se todos do mês já passaram, mostra o primeiro do mês que vem
-      const nextMonth = [...bills].sort((a, b) => a.dueDay - b.dueDay);
-      setNextBill(nextMonth[0]);
+      // Pega o dia da primeira conta (a mais urgente)
+      const nearestDay = upcoming[0].dueDay;
+      
+      // Filtra TODAS as contas que vencem nesse dia
+      const billsOnNearestDay = upcoming.filter(b => b.dueDay === nearestDay);
+      
+      setNextBills(billsOnNearestDay);
+      setNextBillDate(nearestDay);
     } else {
-      setNextBill(null);
+      // Se não tiver mais nada pendente este mês
+      setNextBills([]);
+      setNextBillDate(null);
     }
   }
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+  // Helper para ocultar valores
+  const renderValue = (val: number) => {
+    return isVisible ? formatCurrency(val) : '••••••';
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }} showsVerticalScrollIndicator={false}>
         
-        {/* --- 1. HEADER (SALDO) --- */}
+        {/* HEADER */}
         <View style={styles.header}>
-          <Text style={styles.greeting}>Olá, Kleber</Text>
+          <View style={styles.headerTop}>
+             <Text style={styles.greeting}>Olá, Kleber</Text>
+             {/* BOTÃO DO OLHO */}
+             <TouchableOpacity onPress={() => setIsVisible(!isVisible)} style={styles.eyeBtn}>
+               <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffaa" />
+             </TouchableOpacity>
+          </View>
+          
           <Text style={styles.labelBalance}>Saldo Disponível</Text>
-          <Text style={styles.balanceValue}>{formatCurrency(balance)}</Text>
+          <Text style={styles.balanceValue}>{renderValue(balance)}</Text>
         </View>
 
-        {/* --- 2. BOTÕES DE AÇÃO RÁPIDA --- */}
+        {/* AÇÕES RÁPIDAS */}
         <View style={styles.actionsContainer}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Gastos')}>
             <View style={[styles.iconCircle, { backgroundColor: '#dcfce7' }]}>
@@ -175,7 +204,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* --- 3. GRÁFICO (Gastos do Mês) --- */}
+        {/* GRÁFICO */}
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Gastos do Mês</Text>
@@ -195,18 +224,17 @@ export default function HomeScreen() {
                     chartConfig={{ color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})` }}
                     accessor={"value"}
                     backgroundColor={"transparent"}
-                    paddingLeft={"40"} // Ajuste para centralizar o donut visualmente
+                    paddingLeft={"40"}
                     center={[0, 0]}
                     absolute={false}
                     hasLegend={false}
                   />
-                  {/* Donut Hole */}
                   <View style={styles.donutHole}>
                      <Text style={styles.donutText}>Total</Text>
                   </View>
                 </View>
                 
-                {/* Legenda Customizada Lateral */}
+                {/* LEGENDA DO GRÁFICO */}
                 <View style={styles.legendContainer}>
                   {chartData.map((item, index) => (
                     <View key={index} style={styles.legendItem}>
@@ -214,12 +242,15 @@ export default function HomeScreen() {
                       <Text style={styles.legendText} numberOfLines={1}>
                         {item.name}
                       </Text>
-                      <Text style={styles.legendValue}>{Math.round((item.value / monthExpense) * 100)}%</Text>
+                      {/* Oculta porcentagem e valor se o olho estiver fechado */}
+                      <Text style={styles.legendValue}>
+                        {isVisible ? `${Math.round((item.value / monthExpense) * 100)}%` : '••%'}
+                      </Text>
                     </View>
                   ))}
                   <View style={styles.divider} />
                   <Text style={styles.totalExpenseLabel}>Total gasto:</Text>
-                  <Text style={styles.totalExpenseValue}>{formatCurrency(monthExpense)}</Text>
+                  <Text style={styles.totalExpenseValue}>{renderValue(monthExpense)}</Text>
                 </View>
               </View>
             ) : (
@@ -230,7 +261,7 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* --- 4. WIDGET CONTAS FIXAS --- */}
+        {/* WIDGET CONTAS FIXAS */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Contas Fixas</Text>
           
@@ -241,25 +272,37 @@ export default function HomeScreen() {
               </View>
               <View>
                 <Text style={styles.fixedLabel}>Total Previsto</Text>
-                <Text style={styles.fixedValue}>{formatCurrency(fixedTotal)}</Text>
+                <Text style={styles.fixedValue}>{renderValue(fixedTotal)}</Text>
               </View>
             </View>
 
             <View style={styles.fixedDivider} />
 
-            {nextBill ? (
-              <View style={styles.nextBillRow}>
-                <View>
-                  <Text style={styles.nextBillLabel}>VENCIMENTO PRÓXIMO</Text>
-                  <Text style={styles.nextBillTitle}>{nextBill.title}</Text>
-                </View>
-                <View style={styles.dateBadge}>
-                   <Text style={styles.dateBadgeText}>Dia {nextBill.dueDay}</Text>
-                </View>
+            {/* LISTA DE PRÓXIMOS VENCIMENTOS */}
+            <View>
+              <View style={{flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom: 5}}>
+                 <Text style={styles.nextBillLabel}>
+                    {nextBills.length > 0 ? 'PRÓXIMO VENCIMENTO' : 'TUDO PAGO ESTE MÊS'}
+                 </Text>
+                 {nextBillDate && (
+                    <View style={styles.dateBadge}>
+                       <Text style={styles.dateBadgeText}>Dia {nextBillDate}</Text>
+                    </View>
+                 )}
               </View>
-            ) : (
-              <Text style={styles.nextBillLabel}>Nenhuma conta próxima.</Text>
-            )}
+
+              {nextBills.length > 0 ? (
+                // Mapeia todas as contas do dia
+                nextBills.map((bill, index) => (
+                  <View key={bill.id} style={[styles.billItemRow, index > 0 && { marginTop: 8 }]}>
+                    <Text style={styles.nextBillTitle} numberOfLines={1}>{bill.title}</Text>
+                    <Text style={styles.nextBillValue}>{renderValue(bill.value)}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.nextBillTitle}>Nenhuma conta pendente.</Text>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -271,7 +314,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc', // Fundo levemente cinza para destacar os cards brancos
+    backgroundColor: '#f8fafc', 
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   
@@ -283,16 +326,18 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
-  greeting: { color: '#ffffffaa', fontSize: 14, marginBottom: 5 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 },
+  greeting: { color: '#ffffffaa', fontSize: 14 },
+  eyeBtn: { padding: 5 },
   labelBalance: { color: '#fff', fontSize: 16, fontWeight: '600' },
   balanceValue: { color: '#fff', fontSize: 36, fontWeight: 'bold', marginTop: 5 },
 
-  // AÇÕES RÁPIDAS
+  // AÇÕES
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: -25, // Sobrepor o header
+    marginTop: -25, 
   },
   actionBtn: {
     backgroundColor: '#fff',
@@ -308,7 +353,7 @@ const styles = StyleSheet.create({
   iconCircle: { width: 35, height: 35, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   actionText: { fontWeight: 'bold', color: '#334155', fontSize: 13 },
 
-  // SEÇÕES GERAIS
+  // SEÇÕES
   sectionContainer: { marginTop: 25, paddingHorizontal: 20 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#1e293b' },
@@ -323,10 +368,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
   },
   chartRow: { flexDirection: 'row', alignItems: 'center' },
-  donutHole: { 
-    position: 'absolute', width: 70, height: 70, borderRadius: 35, 
-    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', left: 45 // Ajuste visual
-  },
+  donutHole: { position: 'absolute', width: 70, height: 70, borderRadius: 35, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', left: 45 },
   donutText: { fontSize: 10, color: '#94a3b8', fontWeight: 'bold' },
   
   legendContainer: { flex: 1, marginLeft: 10 },
@@ -341,9 +383,9 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', padding: 20 },
   emptyText: { color: '#94a3b8' },
 
-  // CARD ESCURO (Fixas) - Inspirado na imagem, mas adaptado para não ficar 100% preto
+  // CARD ESCURO (FIXAS)
   cardDark: {
-    backgroundColor: '#1e293b', // Azul quase preto
+    backgroundColor: '#1e293b', 
     borderRadius: 20,
     padding: 20,
     marginBottom: 20
@@ -354,9 +396,12 @@ const styles = StyleSheet.create({
   fixedValue: { color: '#fff', fontSize: 22, fontWeight: 'bold' },
   fixedDivider: { height: 1, backgroundColor: '#334155', marginVertical: 15 },
   
-  nextBillRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nextBillLabel: { color: '#ef4444', fontSize: 10, fontWeight: 'bold', marginBottom: 4 },
-  nextBillTitle: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  nextBillLabel: { color: '#ef4444', fontSize: 10, fontWeight: 'bold' },
   dateBadge: { backgroundColor: '#334155', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  dateBadgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' }
+  dateBadgeText: { color: '#fff', fontSize: 12, fontWeight: 'bold' },
+  
+  // Lista de Contas
+  billItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  nextBillTitle: { color: '#fff', fontSize: 16, fontWeight: '600', flex: 1 },
+  nextBillValue: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
 });
