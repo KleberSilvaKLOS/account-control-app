@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lançamento de Gastos</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13ec6d",
+                        "background-light": "#f6f8f7",
+                        "background-dark": "#102218",
+                        "surface-dark": "#162b20",
+                        "surface-light": "#ffffff",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* Remove default scrollbars for clean UI */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white min-h-screen flex flex-col overflow-hidden relative selection:bg-primary selection:text-background-dark">
+<!-- Top App Bar -->
+<header class="flex items-center justify-between px-6 pt-6 pb-2 shrink-0 z-20">
+<button class="flex items-center justify-center h-10 w-10 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[28px]">close</span>
+</button>
+<h2 class="text-base font-semibold uppercase tracking-widest opacity-60">Nova Despesa</h2>
+<button class="flex items-center gap-2 bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-white/10 pl-3 pr-4 py-2 rounded-full text-sm font-medium hover:border-primary/50 transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[20px] text-primary">calendar_today</span>
+<span>Hoje</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col items-center justify-start pt-6 md:pt-10 gap-8 w-full max-w-lg mx-auto relative px-6 z-10 overflow-y-auto scrollbar-hide">
+<!-- Value Display -->
+<div class="flex flex-col items-center w-full">
+<div class="flex items-start justify-center gap-1 text-slate-900 dark:text-white relative">
+<span class="text-3xl font-bold opacity-40 mt-2">R$</span>
+<input class="bg-transparent border-none p-0 text-center w-auto max-w-[80%] text-[64px] leading-tight font-extrabold tracking-tighter text-slate-900 dark:text-white focus:ring-0 cursor-default select-none" readonly="" type="text" value="150,00"/>
+</div>
+<p class="text-sm font-medium text-slate-400 dark:text-slate-500 mt-1">Saldo atual: R$ 3.240,50</p>
+</div>
+<!-- Description Input -->
+<div class="w-full">
+<label class="block w-full">
+<div class="relative flex items-center">
+<div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400">edit</span>
+</div>
+<input class="block w-full pl-12 pr-4 py-4 bg-surface-light dark:bg-surface-dark border-none rounded-2xl text-slate-900 dark:text-white placeholder:text-slate-400/70 focus:ring-2 focus:ring-primary/50 text-lg font-medium shadow-sm" placeholder="Ex: Almoço de hoje" type="text"/>
+</div>
+</label>
+</div>
+<!-- Categories Grid -->
+<div class="w-full">
+<div class="flex justify-between items-center mb-3 px-1">
+<span class="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Categoria</span>
+<button class="text-xs font-bold text-primary hover:underline">Ver todas</button>
+</div>
+<div class="grid grid-cols-3 gap-4">
+<!-- Category 1: Mercado (Active) -->
+<button class="group flex flex-col items-center gap-3 p-3 rounded-2xl transition-colors relative">
+<div class="absolute inset-0 bg-surface-light dark:bg-surface-dark rounded-2xl -z-10 shadow-sm border-2 border-primary/50 dark:border-primary/50"></div>
+<div class="h-12 w-12 rounded-full bg-primary flex items-center justify-center text-background-dark shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-[24px]">shopping_cart</span>
+</div>
+<span class="text-xs font-bold text-slate-900 dark:text-white">Mercado</span>
+</button>
+<!-- Category 2: Uber/Gasolina -->
+<button class="group flex flex-col items-center gap-3 p-3 rounded-2xl transition-colors relative opacity-60 hover:opacity-100">
+<div class="absolute inset-0 bg-transparent hover:bg-surface-light dark:hover:bg-surface-dark rounded-2xl -z-10 border-2 border-transparent hover:border-slate-200 dark:hover:border-white/10"></div>
+<div class="h-12 w-12 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300">
+<span class="material-symbols-outlined text-[24px]">directions_car</span>
+</div>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Transporte</span>
+</button>
+<!-- Category 3: Manutenção -->
+<button class="group flex flex-col items-center gap-3 p-3 rounded-2xl transition-colors relative opacity-60 hover:opacity-100">
+<div class="absolute inset-0 bg-transparent hover:bg-surface-light dark:hover:bg-surface-dark rounded-2xl -z-10 border-2 border-transparent hover:border-slate-200 dark:hover:border-white/10"></div>
+<div class="h-12 w-12 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center text-slate-600 dark:text-slate-300">
+<span class="material-symbols-outlined text-[24px]">build</span>
+</div>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-400">Manutenção</span>
+</button>
+</div>
+</div>
+</main>
+<!-- Bottom Keypad Section -->
+<footer class="mt-auto bg-surface-light dark:bg-surface-dark rounded-t-[2.5rem] shadow-[0_-8px_30px_rgba(0,0,0,0.1)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.3)] pb-8 pt-2 relative z-30 border-t border-slate-100 dark:border-white/5">
+<!-- Decoration Line -->
+<div class="w-12 h-1 bg-slate-300 dark:bg-white/10 rounded-full mx-auto mt-3 mb-2"></div>
+<!-- Floating Save Button -->
+<div class="absolute -top-8 right-8 z-40">
+<button class="h-16 w-16 rounded-2xl bg-primary text-background-dark shadow-[0_8px_20px_rgba(19,236,109,0.4)] flex items-center justify-center hover:bg-[#0fd660] transition-transform active:scale-95 group">
+<span class="material-symbols-outlined text-[32px] font-bold group-hover:scale-110 transition-transform">check</span>
+</button>
+</div>
+<!-- Numeric Keypad -->
+<div class="grid grid-cols-3 gap-y-2 gap-x-2 px-6 pt-4 max-w-md mx-auto">
+<!-- Row 1 -->
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">1</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">2</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">3</button>
+<!-- Row 2 -->
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">4</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">5</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">6</button>
+<!-- Row 3 -->
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">7</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">8</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">9</button>
+<!-- Row 4 -->
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95 flex items-center justify-center pb-2">
+<span class="text-3xl">,</span>
+</button>
+<button class="h-16 rounded-xl text-3xl font-medium text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">0</button>
+<button class="h-16 rounded-xl text-slate-800 dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95 flex items-center justify-center">
+<span class="material-symbols-outlined text-[28px]">backspace</span>
+</button>
+</div>
+</footer>
+<!-- Background texture/gradient overlay -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none opacity-40 mix-blend-soft-light z-0" data-alt="Abstract green gradient glow in corners on dark background" style="background: radial-gradient(circle at 100% 0%, #13ec6d20 0%, transparent 40%), radial-gradient(circle at 0% 100%, #13ec6d10 0%, transparent 40%);">
+</div>
+</body></html>
