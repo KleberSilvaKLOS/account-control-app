@@ -1,19 +1,36 @@
 {
   "expo": {
-    "name": "myfinance",
+    "name": "MyFinance",
     "slug": "account-control",
-    "scheme": "account",
-    "plugins": [
-      "@react-native-community/datetimepicker",
-      "expo-web-browser"
-    ],
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#3870d8"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kleber.myfinance"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "assets/adaptive-icon.png",
+        "backgroundColor": "#3870d8"
+      },
+      "package": "com.kleber.myfinance",
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
     "extra": {
       "eas": {
         "projectId": "ffe350f5-8f9c-4c2d-99b9-59e028645096"
       }
     },
-    "android": {
-      "package": "com.kleber75.myfinance"
-    }
+    "owner": "kleber75"
   }
 }
