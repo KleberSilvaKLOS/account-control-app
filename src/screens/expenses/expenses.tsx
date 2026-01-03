@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { MaterialIcons, Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native'; // Importação necessária para sincronia
+import { useFocusEffect, useNavigation } from '@react-navigation/native'; // Adicionado useNavigation
 
 // Definindo o formato dos dados
 interface Transaction {
@@ -25,6 +25,7 @@ const DEFAULT_SUGGESTIONS = [
 ];
 
 export default function ExpensesScreen() {
+  const navigation = useNavigation<any>(); // Hook para navegação
   const [list, setList] = useState<Transaction[]>([]);
   const [customCategories, setCustomCategories] = useState<string[]>([]);
   
@@ -46,6 +47,21 @@ export default function ExpensesScreen() {
 
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+
+  // --- LÓGICA DE LOGOUT ---
+  const handleLogout = () => {
+    Alert.alert("Sair", "Deseja realmente sair da sua conta?", [
+      { text: "Cancelar", style: "cancel" },
+      { 
+        text: "Sair", 
+        style: "destructive", 
+        onPress: async () => {
+          await AsyncStorage.removeItem('@myfinance:logged');
+          navigation.replace('login'); // Certifique-se que o nome da rota no Stack é 'Login'
+        } 
+      }
+    ]);
+  };
 
   // --- LOGICA DE SINCRONIZAÇÃO GLOBAL ---
   useFocusEffect(
@@ -197,7 +213,6 @@ export default function ExpensesScreen() {
 
   const formatCurrency = (val: number) => Number(val).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  // Helper de privacidade
   const renderValue = (val: number) => {
     return isVisible ? formatCurrency(val) : '••••••';
   };
@@ -226,7 +241,7 @@ export default function ExpensesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
-      {/* HEADER CENTRALIZADO */}
+      {/* HEADER CENTRALIZADO COM LOGOUT */}
       <View style={styles.summaryContainer}>
         <View style={styles.headerContent}>
           <View style={{ alignItems: 'center' }}>
@@ -235,8 +250,13 @@ export default function ExpensesScreen() {
           </View>
 
           <View style={styles.headerRightActions}>
+              {/* BOTÃO DE LOGOUT (NOVO) */}
+              <TouchableOpacity onPress={handleLogout} style={styles.btnHeaderAction}>
+                 <MaterialIcons name="logout" size={24} color="#ffffffcc" />
+              </TouchableOpacity>
+
               {/* BOTÃO DO OLHO SINCRONIZADO */}
-              <TouchableOpacity onPress={toggleVisibility} style={styles.btnEyeHeader}>
+              <TouchableOpacity onPress={toggleVisibility} style={styles.btnHeaderAction}>
                  <Ionicons name={isVisible ? "eye" : "eye-off"} size={24} color="#ffffffcc" />
               </TouchableOpacity>
               
@@ -290,19 +310,9 @@ export default function ExpensesScreen() {
             <TouchableOpacity style={styles.confirmBtn} onPress={handleSaveTransaction}><MaterialIcons name="check" size={24} color="#fff" /></TouchableOpacity>
           )}
         </View>
-        {showSuggestions && (
-          <View style={styles.suggestionsBox}>
-            {filteredSuggestions.map((item, index) => (
-              <TouchableOpacity key={index} style={styles.suggestionItem} onPress={() => selectSuggestion(item)}>
-                <Text style={styles.suggestionText}>{item}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
       </View>
 
       <View style={styles.listContainer}>
-        <Text style={styles.listTitle}>{editingId ? 'Editando item selecionado...' : 'Últimas atividades'}</Text>
         <FlatList data={list} renderItem={renderItem} keyExtractor={item => item.id} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }} />
       </View>
 
@@ -311,11 +321,6 @@ export default function ExpensesScreen() {
           <TouchableWithoutFeedback onPress={() => setModalVisible(false)}><View style={styles.modalBackdrop} /></TouchableWithoutFeedback>
           <View style={styles.sideMenu}>
             <View style={styles.modalHeader}><Text style={styles.modalTitle}>Configurações</Text><TouchableOpacity onPress={() => setModalVisible(false)}><MaterialIcons name="close" size={24} color="#64748b" /></TouchableOpacity></View>
-            <Text style={styles.inputLabel}>Adicionar Nova Opção</Text>
-            <View style={styles.addCategoryRow}>
-              <TextInput style={styles.modalInput} placeholder="Nome da categoria..." value={newCategoryName} onChangeText={setNewCategoryName} />
-              <TouchableOpacity style={styles.btnAddCategory} onPress={handleAddCategory}><MaterialIcons name="add" size={24} color="#fff" /></TouchableOpacity>
-            </View>
             <View style={styles.dangerZone}><TouchableOpacity style={styles.btnDelete} onPress={handleClearAll}><MaterialIcons name="delete-forever" size={24} color="#ef4444" /><Text style={styles.btnDeleteText}>Apagar tudo</Text></TouchableOpacity></View>
           </View>
         </View>
@@ -329,14 +334,14 @@ const styles = StyleSheet.create({
   summaryContainer: { padding: 20, backgroundColor: '#3870d8', borderBottomLeftRadius: 30, borderBottomRightRadius: 30, paddingBottom: 40, elevation: 5, zIndex: 1 },
   headerContent: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-start', width: '100%', position: 'relative', marginBottom: 15 },
   headerRightActions: { position: 'absolute', right: 0, top: 0, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  btnEyeHeader: { padding: 5 },
+  btnHeaderAction: { padding: 5 }, // Estilo comum para olho e logout
   btnAddHeader: { backgroundColor: '#fff', width: 45, height: 45, borderRadius: 25, justifyContent: 'center', alignItems: 'center' },
   summaryLabel: { color: '#ffffffcc', fontSize: 14, textTransform: 'uppercase', letterSpacing: 1 },
   summaryAmount: { color: '#ffffff', fontSize: 32, fontWeight: 'bold', marginTop: 5 },
   row: { flexDirection: 'row', gap: 15, justifyContent: 'center' },
   summaryMiniCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, gap: 5 },
   miniCardText: { color: '#fff', fontSize: 12, fontWeight: '500' },
-  mainInputContainer: { marginHorizontal: 20, marginTop: -30, backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 6, zIndex: 10, marginBottom: 10 },
+  mainInputContainer: { marginHorizontal: 20, marginTop: -30, backgroundColor: '#fff', borderRadius: 20, padding: 20, elevation: 8, zIndex: 10, marginBottom: 10 },
   quickTypeSelector: { flexDirection: 'row', marginBottom: 15, gap: 10 },
   quickTypeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, borderRadius: 10, borderWidth: 1, gap: 5 },
   quickTypeInactive: { borderColor: '#e2e8f0', backgroundColor: '#f8fafc' },
@@ -350,11 +355,7 @@ const styles = StyleSheet.create({
   descInput: { flex: 1, backgroundColor: '#f1f5f9', borderRadius: 10, paddingHorizontal: 15, height: 50, fontSize: 16 },
   confirmBtn: { width: 50, height: 50, backgroundColor: '#3870d8', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   cancelBtn: { width: 50, height: 50, backgroundColor: '#ef4444', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  suggestionsBox: { position: 'absolute', top: 185, left: 20, right: 20, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e2e8f0', elevation: 5, maxHeight: 150 },
-  suggestionItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  suggestionText: { color: '#333' },
   listContainer: { flex: 1, paddingHorizontal: 20, paddingTop: 10, zIndex: 1 },
-  listTitle: { color: '#a1a1a1', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   itemCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#3870d8', padding: 15, borderRadius: 15, marginBottom: 12 },
   itemCardEditing: { borderWidth: 2, borderColor: '#fbbf24' },
   itemIconContainer: { backgroundColor: '#233860', padding: 10, borderRadius: 12 },
@@ -367,11 +368,6 @@ const styles = StyleSheet.create({
   sideMenu: { width: '85%', backgroundColor: '#fff', padding: 25, borderTopLeftRadius: 20, borderBottomLeftRadius: 20, elevation: 10 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
   modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#3870d8' },
-  inputLabel: { color: '#3870d8', marginBottom: 5, fontWeight: 'bold' },
-  helperText: { color: '#64748b', fontSize: 12, marginBottom: 10 },
-  addCategoryRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  modalInput: { flex: 1, backgroundColor: '#f1f5f9', padding: 15, borderRadius: 10, fontSize: 16, color: '#333' },
-  btnAddCategory: { width: 50, backgroundColor: '#13ec6d', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   dangerZone: { marginTop: 'auto', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 20 },
   btnDelete: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10 },
   btnDeleteText: { color: '#ef4444', fontWeight: '600', fontSize: 14 }

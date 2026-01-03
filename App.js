@@ -32,7 +32,7 @@ export default function App() {
             elevation: 5, // Sombra Android
             backgroundColor: '#ffffff',
             borderTopStartRadius: 15, // Bordas arredondadas
-            borderTopEndRadius: 15, // Bordas arredondadas
+            borderTopStartRadius: 15, // Bordas arredondadas
             height: 70, // Altura maior para acomodar o ícone flutuante
             shadowColor: '#000', // Sombra iOS
             shadowOffset: { width: 0, height: 5 },
