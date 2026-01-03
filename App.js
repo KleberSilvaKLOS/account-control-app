@@ -14,6 +14,8 @@ import SummaryScreen from './src/screens/summary/summary';
 import FixedBillsScreen from './src/screens/fixedbills/fixedbills';
 import InvestmentsScreen from './src/screens/investments/investments';
 import LoginScreen from './src/screens/login/login';
+import EmailScreen from './src/screens/auth/email'; 
+import PinCreateScreen from './src/screens/auth/pinCreate'; // ATIVADO
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -43,7 +45,6 @@ const styles = StyleSheet.create({
 function TabNavigator() {
   return (
     <Tab.Navigator
-      // FORÇA A ABERTURA NA HOME SEM MUDAR A POSIÇÃO DO ÍCONE
       initialRouteName="Home" 
       screenOptions={{
         headerShown: false,
@@ -65,7 +66,6 @@ function TabNavigator() {
         },
       }}
     >
-      {/* 1ª ABA: ESQUERDA */}
       <Tab.Screen 
         name="Gastos" 
         component={ExpensesScreen} 
@@ -77,8 +77,6 @@ function TabNavigator() {
           ),
         }}
       />
-
-      {/* 2ª ABA: MEIO-ESQUERDA */}
       <Tab.Screen 
         name="Fixas" 
         component={FixedBillsScreen} 
@@ -90,8 +88,6 @@ function TabNavigator() {
           ),
         }}
       />
-
-      {/* 3ª ABA: CENTRO (HOME) */}
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
@@ -103,8 +99,6 @@ function TabNavigator() {
           ),
         }}
       />
-
-      {/* 4ª ABA: MEIO-DIREITA */}
       <Tab.Screen 
         name="Resumo" 
         component={SummaryScreen} 
@@ -116,8 +110,6 @@ function TabNavigator() {
           ),
         }}
       />
-
-      {/* 5ª ABA: DIREITA */}
       <Tab.Screen 
         name="Investimentos" 
         component={InvestmentsScreen} 
@@ -133,6 +125,7 @@ function TabNavigator() {
   );
 }
 
+// --- COMPONENTE PRINCIPAL ---
 export default function App() {
   const [isLogged, setIsLogged] = useState(null);
 
@@ -154,12 +147,15 @@ export default function App() {
     <NavigationContainer>
       <StatusBar style="light" backgroundColor="#3870d8" />
       <Stack.Navigator 
-        // Se você quer que SEMPRE peça login ao abrir o app, 
-        // mude para initialRouteName="Login"
         initialRouteName={isLogged ? 'MainTabs' : 'Login'} 
         screenOptions={{ headerShown: false }}
       >
+        {/* Telas de Autenticação */}
         <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="email" component={EmailScreen} />
+        <Stack.Screen name="PinCreate" component={PinCreateScreen} />
+        
+        {/* Fluxo Principal do App */}
         <Stack.Screen name="MainTabs" component={TabNavigator} />
       </Stack.Navigator>
     </NavigationContainer>

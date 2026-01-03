@@ -93,6 +93,16 @@ export default function LoginScreen({ navigation }: any) {
                 <MaterialIcons name="person-outline" size={24} color="#3870d8" />
                 <Text style={styles.guestText}>Continuar sem cadastro</Text>
               </TouchableOpacity>
+
+              {/* BOTÃO DE CADASTRO POR E-MAIL (NOVO) */}
+              <TouchableOpacity
+                style={styles.emailBtn}
+                onPress={() => navigation.navigate('email')}
+                activeOpacity={0.8}
+              >
+                <MaterialIcons name="mail-outline" size={24} color="#3870d8" />
+                <Text style={styles.emailText}>Cadastrar PIN por E-mail</Text>
+              </TouchableOpacity>
             </>
           )}
         </View>
@@ -173,6 +183,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   guestText: {
+    color: '#3870d8',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  emailBtn: {
+    flexDirection: 'row',
+    height: 55,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#3870d8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  emailText: {
     color: '#3870d8',
     fontSize: 16,
     fontWeight: '600',

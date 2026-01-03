@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "account control",
+    "name": "myfinance",
     "slug": "account-control",
     "scheme": "account",
     "plugins": [
@@ -13,7 +13,7 @@
       }
     },
     "android": {
-      "package": "com.kleber75.accountcontrol"
+      "package": "com.kleber75.myfinance"
     }
   }
 }
