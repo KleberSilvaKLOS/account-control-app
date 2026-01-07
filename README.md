@@ -1,4 +1,4 @@
-# 💰 MyFinance - Controle Financeiro Pessoall
+# 💰 MyFinance - Controle Financeiro Pessoal
 
 ![Badge em Desenvolvimento](http://img.shields.io/static/v1?label=STATUS&EM%20DESENVOLVIMENTO&color=GREEN&style=for-the-badge)
 ![Badge React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
@@ -136,3 +136,4 @@ Faça o Commit (git commit -m 'Adicionando uma feature incrível')
 Faça o Push (git push origin feature/MinhaFeature)
 
 Abra um Pull Request
+
