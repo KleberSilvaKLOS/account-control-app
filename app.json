@@ -4,10 +4,10 @@
     "slug": "account-control",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "assets/icon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "splash": {
-      "image": "assets/splash.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#3870d8"
     },
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3870d8"
       },
       "package": "com.kleber.myfinance",
@@ -26,11 +26,11 @@
         "USE_FINGERPRINT"
       ]
     },
+    "owner": "kleber75",
     "extra": {
       "eas": {
-        "projectId": "ffe350f5-8f9c-4c2d-99b9-59e028645096"
+        "projectId": "77396395-7048-4e02-bd2f-b5bb18c9b90e"
       }
-    },
-    "owner": "kleber75"
+    }
   }
 }
